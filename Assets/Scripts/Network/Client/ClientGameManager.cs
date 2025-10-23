@@ -1,7 +1,9 @@
+using kcp2k;
 using Mirror;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Principal;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -21,6 +23,8 @@ public class ClientGameManager : MonoBehaviour
     public GameObject authenticatorPrefab;
     private ClientConnectStatus connectStatus = ClientConnectStatus.CONNECT_NONE;     // 通信管理フラグ
     private bool isInitialized = false;
+    AsyncOperationHandle<IList<GameObject>> loadHandle;
+    private List<GameObject> loadedPrefabs = new List<GameObject>();
     /// <summary>
     /// サーバーの接続状態
     /// </summary>
@@ -39,13 +43,64 @@ public class ClientGameManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
-    private string initPrefabName;
     void OnGUI()
     {
         GUILayout.Label($"Build Path: {UnityEngine.AddressableAssets.Addressables.BuildPath}");
         GUILayout.Label($"Runtime Path: {UnityEngine.AddressableAssets.Addressables.RuntimePath}");
-        GUILayout.Label($"Instantiated_Object: {initPrefabName}");
         GUILayout.Label($"Initialized: {isInitialized}");
+
+        GUILayout.Label("--- loadedPrefabs ---");
+        int validPrefabCount = 0;
+        foreach (var prefab in loadedPrefabs)
+        {
+            if (prefab == null)
+            {
+                GUILayout.Label($"loadedPrefabsObject: !!! PREFAB IS NULL !!!");
+            }
+            else
+            {
+                // prefabがnullでないことを確認してからgameObjectにアクセス
+                GameObject go = prefab.gameObject;
+                if (go == null)
+                {
+                    // prefab自体は存在するが、gameObjectプロパティがnullになる異常ケース
+                    GUILayout.Label($"loadedPrefabsObject: Prefab exists, but gameObject is NULL!");
+                }
+                else
+                {
+                    GUILayout.Label($"loadedPrefabsObject: {go.name}");
+                    validPrefabCount++; // 有効なプレハブをカウント
+                }
+            }
+        }
+        GUILayout.Label($"Valid Prefabs Count in loadedPrefabs: {validPrefabCount}"); // 有効なプレハブ数を表示
+                                                                                      // ★★★ ここまで修正 ★★★
+
+        GUILayout.Label("--- NetworkClient.prefabs ---");
+        int validNetworkClientPrefabCount = 0;
+        foreach (var kvp in NetworkClient.prefabs)
+        {
+            if (kvp.Value == null)
+            {
+                GUILayout.Label($"NetworkClientObject {kvp.Key} : NULL");
+            }
+            else
+            {
+                // 値がnullでないことを確認してからnameにアクセス
+                GameObject go = kvp.Value.gameObject;
+                if (go == null)
+                {
+                    GUILayout.Label($"NetworkClientObject {kvp.Key} : Value exists, but gameObject is NULL!");
+                }
+                else
+                {
+                    GUILayout.Label($"NetworkClientObject {kvp.Key} : {go.name}");
+                    validNetworkClientPrefabCount++; // 有効なプレハブをカウント
+                }
+            }
+        }
+        GUILayout.Label($"Valid Prefabs Count in NetworkClient.prefabs: {validNetworkClientPrefabCount}"); // 有効なプレハブ数を表示
+        GUILayout.Label("--------------------------");
     }
     //IEnumerator LoadByLabel(string label)
     //{
@@ -101,7 +156,6 @@ public class ClientGameManager : MonoBehaviour
 
         // --- Authenticatorの設定 ---
         SetupAuthenticator();
-
         // --- 初期化完了 ---
         isInitialized = true;
         Debug.Log("[Client] 初期化処理が完了しました。接続可能です。");
@@ -112,8 +166,6 @@ public class ClientGameManager : MonoBehaviour
     private IEnumerator RegisterAddressablePrefabsAsync()
     {
         Debug.Log("[Client] Addressablesからプレハブの読み込みを開始します...");
-
-        AsyncOperationHandle<IList<GameObject>> loadHandle = default;
 
         try
         {
@@ -139,11 +191,14 @@ public class ClientGameManager : MonoBehaviour
         {
             IList<GameObject> prefabs = loadHandle.Result;
             int count = 0;
+            //roadObjectName.Clear();
+            loadedPrefabs.Clear();
             foreach (var prefab in prefabs)
             {
                 if (prefab != null)
                 {
                     NetworkClient.RegisterPrefab(prefab);
+                    loadedPrefabs.Add(prefab);
                     count++;
                 }
             }
@@ -158,7 +213,7 @@ public class ClientGameManager : MonoBehaviour
 
         if (loadHandle.IsValid())
         {
-            Addressables.Release(loadHandle);
+            //Addressables.Release(loadHandle);
         }
     }
 
@@ -218,7 +273,17 @@ public class ClientGameManager : MonoBehaviour
         Debug.LogWarning("サーバーから切断されました。");
         connectStatus = ClientConnectStatus.CONNECT_NONE;
     }
-
+    void OnDestroy()
+    {
+        // アプリケーション終了時に保持リストをクリア（参照を解放）
+        loadedPrefabs.Clear();
+        if (loadHandle.IsValid())
+        {
+            Addressables.Release(loadHandle);
+            Debug.Log("[Client] Addressables LoadAssetsAsync ハンドルを解放しました。");
+        }
+        Debug.Log("[Client] ClientGameManager destroyed.");
+    }
     /// <summary>
     /// UIから呼び出されるサーバー接続メソッド
     /// </summary>

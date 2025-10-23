@@ -353,7 +353,7 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
@@ -1408,8 +1408,8 @@ MonoBehaviour:
   serverDropdown: {fileID: 807103361}
   connectButton: {fileID: 2043351218}
   startButton: {fileID: 639107647}
-  serverIP: 10.192.46.142
-  serverPort: 7596
+  serverIP: 10.192.78.213
+  serverPort: 7894
   editorConnectButton: {fileID: 1369542280}
 --- !u!4 &1027148877
 Transform:
@@ -1792,7 +1792,7 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 1
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 6e72656b
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
@@ -2149,7 +2149,7 @@ MonoBehaviour:
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
-  m_ActiveFontFeatures: 00000000
+  m_ActiveFontFeatures: 
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
