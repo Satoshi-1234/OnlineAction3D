@@ -16,7 +16,6 @@ public class ServerGameManager : NetworkManager
     public override void Awake()
     {
         base.Awake();
-        // ★★★ ここから追加 ★★★
         if (authenticatorPrefab != null)
         {
             // プレハブから認証コンポーネントを生成
@@ -40,7 +39,6 @@ public class ServerGameManager : NetworkManager
         {
             Debug.LogWarning("[Server-Warning] Authenticator Prefab Not Set. No authentication is performed.");
         }
-        // ★★★ ここまで追加 ★★★
         if (Instance == null)
         {
             Instance = this;
@@ -62,6 +60,7 @@ public class ServerGameManager : NetworkManager
         NetworkServer.RegisterHandler<ClientReadyRequest>(OnClientReady);
         LoadCharacterPrefabsAsync();
     }
+
     /// <summary>
     /// "Character"ラベルを持つ全てのアセットをAddressablesから非同期で読み込む
     /// </summary>

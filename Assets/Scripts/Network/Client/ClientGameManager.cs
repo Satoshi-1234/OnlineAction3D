@@ -102,54 +102,15 @@ public class ClientGameManager : MonoBehaviour
         GUILayout.Label($"Valid Prefabs Count in NetworkClient.prefabs: {validNetworkClientPrefabCount}"); // 有効なプレハブ数を表示
         GUILayout.Label("--------------------------");
     }
-    //IEnumerator LoadByLabel(string label)
-    //{
-    //    var handle = Addressables.LoadAssetsAsync<GameObject>(label, null);
-    //    yield return handle;
 
-    //    if (!handle.IsValid() || handle.Status != AsyncOperationStatus.Succeeded)
-    //    {
-    //        Debug.LogError($"[LoadByLabel] {label} 読み込み失敗");
-    //        yield break;
-    //    }
-
-    //    foreach (var prefab in handle.Result)
-    //    {
-    //        GameObject go = Instantiate(prefab);
-    //        go.name = $"Instantiated_{prefab.name}";
-    //        initPrefabName = go.name;
-    //    }
-
-    //    Addressables.Release(handle);
-    //}
-    //IEnumerator Start()
-    //{
-    //    Debug.Log("[Client] Addressables 初期化開始...");
-
-    //    yield return Addressables.InitializeAsync(); // ★ ハンドルを保持しない
-
-    //    Debug.Log("[Client] Addressables initialized.");
-
-    //    // ResourceLocatorsが2件以上あるか確認
-    //    Debug.Log($"[Client] Catalogs Count: {Addressables.ResourceLocators.Count()}");
-
-    //    // ここからPrefab読み込みへ
-    //    yield return LoadByLabel("Character");
-    //}
     IEnumerator Start()
     {
-        Debug.Log("[Client] Done waiting. Starting Addressables initialization...");
-        Debug.Log("[Client] 初期化処理を開始します...");
-
-        Debug.Log($"[Client] Build Path: {UnityEngine.AddressableAssets.Addressables.BuildPath}");
-        Debug.Log($"[Client] Addressables Runtime Path: {UnityEngine.AddressableAssets.Addressables.RuntimePath}");
-        Debug.Log($"[Client] Catalogs Count (before init): {Addressables.ResourceLocators.Count()}");
-
+        Debug.Log("[Client] Done waiting. Starting Addressables 初期化処理を開始します...");
         // ハンドルを変数に保持しない → IsValid() や Status に触らない
         yield return Addressables.InitializeAsync();
 
         Debug.Log("[Client] Addressables initialized.");
-        Debug.Log($"[Client] Catalogs Count (after init): {Addressables.ResourceLocators.Count()}");
+        Debug.Log($"[Client] Catalogs Count ({Addressables.ResourceLocators.Count()})");
 
         // --- プレハブの読み込みと登録 ---
         yield return RegisterAddressablePrefabsAsync();
@@ -209,11 +170,6 @@ public class ClientGameManager : MonoBehaviour
             Debug.LogError("[Client] プレハブの読み込みに失敗しました。 Status: " + loadHandle.Status);
             if (loadHandle.OperationException != null)
                 Debug.LogException(loadHandle.OperationException);
-        }
-
-        if (loadHandle.IsValid())
-        {
-            //Addressables.Release(loadHandle);
         }
     }
 

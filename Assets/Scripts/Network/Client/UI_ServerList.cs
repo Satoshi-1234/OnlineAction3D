@@ -1,10 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
-using Mirror.Discovery;//
-using Mirror;//
-using Telepathy;//
 using System.Collections.Generic;
-using Unity.VisualScripting;//
 using TMPro;
 using System.Linq;
 //using VSCodeEditor;

@@ -4,6 +4,7 @@ using Mirror;
 public struct ClientReadyRequest : NetworkMessage 
 {
     public uint _phase;
+    public string _StageName;
 }
 public struct ClientReadyResponse : NetworkMessage 
 {

@@ -73,6 +73,7 @@ public class NetworkPlayerController : NetworkBehaviour // NetworkBehaviour��
         {
             // �T�[�o�[�ɃW�����v�������Ƃ𖽗߂���
             CmdTriggerJump();
+            _animationUpdater.TriggerJump();
             // ���[�J���ł͑����ɕ����I�ȃW�����v�����s���āA����̃��X�|���X��ǂ�����
             _rigidbody.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
         }
@@ -132,6 +133,7 @@ public class NetworkPlayerController : NetworkBehaviour // NetworkBehaviour��
     [ClientRpc]
     private void RpcTriggerJump()
     {
+        if (isLocalPlayer) return;
         // ���̃v���C���[�̃W�����v�͕������Z�𔺂�Ȃ��i�ʒu������NetworkTransform���s���j
         // �A�j���[�V�����̃g���K�[�������Ăяo��
         _animationUpdater.TriggerJump();
