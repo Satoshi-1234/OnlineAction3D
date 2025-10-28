@@ -6,6 +6,15 @@ public struct ClientReadyRequest : NetworkMessage
     public uint _phase;
     public string _StageName;
 }
+
+public struct ClientSceneChangeRequest : NetworkMessage
+{
+    public string _targetSceneName;
+}
+public struct ClientSceneReadyRequest : NetworkMessage 
+{
+    public GameScene _nowScene;
+}
 public struct ClientReadyResponse : NetworkMessage 
 {
     public bool _isConnect;

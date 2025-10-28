@@ -1,10 +1,9 @@
-using kcp2k;
 using Mirror;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Principal;
-using System.Threading;
+//using System.Security.Principal;
+//using System.Threading;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -14,7 +13,7 @@ public enum ClientConnectStatus
     CONNECT_NONE,       //接続していない
     CONNECT_SUCCESS,    //接続成功
 }
-public class ClientGameManager : MonoBehaviour
+public class ClientGameManager : NetworkManager
 {
     // このクラスの唯一のインスタンスを保持する (シングルトン)
     public static ClientGameManager Instance { get; private set; }
@@ -30,8 +29,9 @@ public class ClientGameManager : MonoBehaviour
     /// </summary>
     public ClientConnectStatus GetConnectStatus() => connectStatus;
     public bool GetInitialized() => isInitialized;
-    void Awake()
+    public override void Awake()
     {
+        base.Awake();//test
         // シングルトンパターンの実装
         if (Instance == null)
         {
@@ -51,11 +51,11 @@ public class ClientGameManager : MonoBehaviour
 
         GUILayout.Label("--- loadedPrefabs ---");
         int validPrefabCount = 0;
-        foreach (var prefab in loadedPrefabs)
+        foreach (var prefab in spawnPrefabs)
         {
             if (prefab == null)
             {
-                GUILayout.Label($"loadedPrefabsObject: !!! PREFAB IS NULL !!!");
+                GUILayout.Label($"spawnPrefabsObject: !!! PREFAB IS NULL !!!");
             }
             else
             {
@@ -64,16 +64,16 @@ public class ClientGameManager : MonoBehaviour
                 if (go == null)
                 {
                     // prefab自体は存在するが、gameObjectプロパティがnullになる異常ケース
-                    GUILayout.Label($"loadedPrefabsObject: Prefab exists, but gameObject is NULL!");
+                    GUILayout.Label($"spawnPrefabsObject: Prefab exists, but gameObject is NULL!");
                 }
                 else
                 {
-                    GUILayout.Label($"loadedPrefabsObject: {go.name}");
+                    GUILayout.Label($"spawnPrefabsObject: {go.name}");
                     validPrefabCount++; // 有効なプレハブをカウント
                 }
             }
         }
-        GUILayout.Label($"Valid Prefabs Count in loadedPrefabs: {validPrefabCount}"); // 有効なプレハブ数を表示
+        GUILayout.Label($"Valid Prefabs Count in spawnPrefabs: {validPrefabCount}"); // 有効なプレハブ数を表示
                                                                                       // ★★★ ここまで修正 ★★★
 
         GUILayout.Label("--- NetworkClient.prefabs ---");
@@ -103,7 +103,43 @@ public class ClientGameManager : MonoBehaviour
         GUILayout.Label("--------------------------");
     }
 
-    IEnumerator Start()
+    public override void Start()//test
+    {
+        base.Start();
+        StartCoroutine(Initialized());
+    }
+    private async void RegisterAddressablePrefabsAsyncTest()
+    {
+        Debug.Log("[Client] Addressablesからプレハブの読み込みを開始します...");
+        var handle = Addressables.LoadAssetsAsync<GameObject>("Character", null);
+        await handle.Task;
+        if (handle.Status == AsyncOperationStatus.Succeeded)
+        {
+            IList<GameObject> prefabs = handle.Result;
+            loadedPrefabs.Clear();
+            int count = 0;
+            foreach (var prefab in prefabs)
+            {
+                if (prefab != null)
+                {
+                    if (!spawnPrefabs.Contains(prefab))
+                    {
+                        spawnPrefabs.Add(prefab);
+                    }
+                    //NetworkClient.RegisterPrefab(prefab);
+                    loadedPrefabs.Add(prefab);
+                    count++;
+                }
+            }
+            isInitialized = true;
+            Debug.Log($"[Client] {count} 個のプレハブをAddressablesから登録しました。");
+        }
+        else
+        {
+            Debug.LogError("[Client] LoadAssetsAsync の呼び出し中に例外が発生！");
+        }
+    }
+    IEnumerator Initialized()//test:start
     {
         Debug.Log("[Client] Done waiting. Starting Addressables 初期化処理を開始します...");
         // ハンドルを変数に保持しない → IsValid() や Status に触らない
@@ -113,12 +149,12 @@ public class ClientGameManager : MonoBehaviour
         Debug.Log($"[Client] Catalogs Count ({Addressables.ResourceLocators.Count()})");
 
         // --- プレハブの読み込みと登録 ---
-        yield return RegisterAddressablePrefabsAsync();
-
+        //yield return RegisterAddressablePrefabsAsync();
+        RegisterAddressablePrefabsAsyncTest();
         // --- Authenticatorの設定 ---
         SetupAuthenticator();
         // --- 初期化完了 ---
-        isInitialized = true;
+        //isInitialized = true;
         Debug.Log("[Client] 初期化処理が完了しました。接続可能です。");
     }
 
@@ -158,7 +194,11 @@ public class ClientGameManager : MonoBehaviour
             {
                 if (prefab != null)
                 {
-                    NetworkClient.RegisterPrefab(prefab);
+                    if (!spawnPrefabs.Contains(prefab))
+                    {
+                        spawnPrefabs.Add(prefab);
+                    }
+                    //NetworkClient.RegisterPrefab(prefab);
                     loadedPrefabs.Add(prefab);
                     count++;
                 }
@@ -229,8 +269,9 @@ public class ClientGameManager : MonoBehaviour
         Debug.LogWarning("サーバーから切断されました。");
         connectStatus = ClientConnectStatus.CONNECT_NONE;
     }
-    void OnDestroy()
+    public override void OnDestroy()
     {
+        base.OnDestroy();
         // アプリケーション終了時に保持リストをクリア（参照を解放）
         loadedPrefabs.Clear();
         if (loadHandle.IsValid())
@@ -279,6 +320,21 @@ public class ClientGameManager : MonoBehaviour
         else
         {
             Debug.LogError("サーバーに接続されていません。メッセージは送信できませんでした。");
+        }
+    }
+
+    public void RequestServerSceneChange(GameScene requestedScene)
+    {
+        if (connectStatus == ClientConnectStatus.CONNECT_SUCCESS && NetworkClient.isConnected)
+        {
+            // Enumをサーバーが理解できる形式 (intやstring) に変換して送信
+            // 例: phase 3 がシーン遷移リクエスト、requestedScene.ToString() でシーン名を送る
+            Debug.Log($"[Client] Send Scene Change Request: {requestedScene}");
+            NetworkClient.Send(new ClientSceneChangeRequest { _targetSceneName = requestedScene.ToString() }); // 新しいメッセージ型を定義
+        }
+        else
+        {
+            Debug.LogError("[Client] サーバーに接続されていません。");
         }
     }
     #endregion

@@ -57,10 +57,18 @@ public class ServerGameManager : NetworkManager
     {
         base.OnStartServer();
         //Instance = this;
-        NetworkServer.RegisterHandler<ClientReadyRequest>(OnClientReady);
+        NetworkServer.RegisterHandler<ClientReadyRequest>(OnClientReady);//廃棄予定
+        NetworkServer.RegisterHandler<ClientSceneChangeRequest>(OnClientSceneChange);
+        NetworkServer.RegisterHandler<ClientSceneReadyRequest>(OnClientSceneReady);
         LoadCharacterPrefabsAsync();
     }
-
+    public override void OnStopServer()
+    {
+        base.OnStopServer();
+        NetworkServer.UnregisterHandler<ClientReadyRequest>();
+        NetworkServer.UnregisterHandler<ClientSceneChangeRequest>();
+        NetworkServer.UnregisterHandler<ClientSceneReadyRequest>();
+    }
     /// <summary>
     /// "Character"ラベルを持つ全てのアセットをAddressablesから非同期で読み込む
     /// </summary>
@@ -87,11 +95,6 @@ public class ServerGameManager : NetworkManager
         {
             Debug.LogError("[Server] Addressablesからのキャラクタープレハブ読み込みに失敗しました。");
         }
-    }
-    public override void OnStopServer()
-    {
-        base.OnStopServer();
-        NetworkServer.UnregisterHandler<ClientReadyRequest>();
     }
 
     public override void OnServerDisconnect(NetworkConnectionToClient conn)
@@ -121,6 +124,43 @@ public class ServerGameManager : NetworkManager
         }
     }
 
+    void OnClientSceneChange(NetworkConnectionToClient conn,ClientSceneChangeRequest msg)
+    {
+        Debug.Log($"[Server] GetClientSceneChangeRequest from {conn.connectionId}, TargetScene:{msg._targetSceneName}");
+        conn.Send(new SceneMessage { sceneName = msg._targetSceneName });
+    }
+
+    void OnClientSceneReady(NetworkConnectionToClient conn, ClientSceneReadyRequest msg)
+    {
+        Debug.Log($"[Server-GetRequest] {conn.connectionId} : {msg._nowScene.ToString()} is Ready!");
+        switch (msg._nowScene)
+        {
+            case GameScene.Title:
+                break;
+            case GameScene.Home:
+                break;
+            case GameScene.BattleForest:
+                break;
+            case GameScene.BattleCastle:
+                break;
+        }
+        // ★★★ ここでマッチング参加者全員の準備が整ったかチェックするロジックを実装 ★★★
+        // 例:
+        // Match currentMatch = FindMatchContainingPlayer(conn);
+        // if (currentMatch != null)
+        // {
+        //     currentMatch.MarkPlayerAsReady(conn.connectionId);
+        //     if (currentMatch.AreAllPlayersReady())
+        //     {
+        //         StartMatchCountdown(currentMatch); // 全員準備完了なら試合開始処理へ
+        //     }
+        // }
+
+        // 注意: 以前の SetClientReady はここでは呼ばないこと。
+        // SetClientReady はプレイヤーオブジェクトの準備完了を意味し、
+        // シーンの準備完了とは別です。
+        // NetworkServer.SetClientReady(conn); // ← これは不要
+    }
     public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
         Debug.Log($"[Server] OnServerAddPlayer: conn {conn.connectionId} Generated");
