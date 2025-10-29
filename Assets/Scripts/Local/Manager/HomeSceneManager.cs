@@ -3,7 +3,7 @@ using UnityEngine;
 using Mirror;
 using TMPro;
 using System.Collections;
-public class HomeSceneManager : MonoBehaviour
+public class HomeSceneManager : SceneManagerBase
 {
     private int selectCharacterId = 0;      // キャラクターID
     private bool matchConnect = false;      // マッチング開始フラグ
@@ -93,7 +93,8 @@ public class HomeSceneManager : MonoBehaviour
         if (startMatch != null && !matchConnect)
         {
             matchConnect = true;
-            ClientGameManager.Instance.SetSceneToServer("BattleScene");
+            //ClientGameManager.Instance.SetSceneToServer("BattleScene");
+            RequestSceneTransition();
             startMatch.GetComponentInChildren<TMP_Text>().text = "キャンセル";
         }
         else if(startMatch != null)

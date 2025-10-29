@@ -1,7 +1,7 @@
 using UnityEngine;
 using Mirror;
 using System.Collections;
-public class BattleSceneManager : MonoBehaviour
+public class BattleSceneManager : SceneManagerBase
 {
     IEnumerator Start()
     {

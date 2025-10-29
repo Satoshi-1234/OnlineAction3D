@@ -127,7 +127,19 @@ public class ServerGameManager : NetworkManager
     void OnClientSceneChange(NetworkConnectionToClient conn,ClientSceneChangeRequest msg)
     {
         Debug.Log($"[Server] GetClientSceneChangeRequest from {conn.connectionId}, TargetScene:{msg._targetSceneName}");
-        conn.Send(new SceneMessage { sceneName = msg._targetSceneName });
+        switch (msg._nextSceneLabel)
+        {
+            case GameScene.Title:
+            case GameScene.Home:
+            case GameScene.BattleCastle://test
+                conn.Send(new SceneMessage { sceneName = msg._nextSceneLabel.ToString(), sceneOperation = msg._sceneOperation, customHandling = msg._customHandling });
+                break;
+            case GameScene.Debug:
+                conn.Send(new SceneMessage { sceneName = msg._targetSceneName, sceneOperation = msg._sceneOperation, customHandling = msg._customHandling });
+                break;
+        }
+
+        
     }
 
     void OnClientSceneReady(NetworkConnectionToClient conn, ClientSceneReadyRequest msg)

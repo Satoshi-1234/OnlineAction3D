@@ -9,7 +9,10 @@ public struct ClientReadyRequest : NetworkMessage
 
 public struct ClientSceneChangeRequest : NetworkMessage
 {
+    public GameScene _nextSceneLabel;
     public string _targetSceneName;
+    public SceneOperation _sceneOperation;
+    public bool _customHandling;
 }
 public struct ClientSceneReadyRequest : NetworkMessage 
 {

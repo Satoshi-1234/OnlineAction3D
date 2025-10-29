@@ -150,6 +150,7 @@ public class UI_ServerList : MonoBehaviour
     public void OnClickStart()
     {
         Debug.Log("クライアントの準備完了をサーバーに通知します。");
-        ClientGameManager.Instance.SetSceneToServer("Home");
+        //ClientGameManager.Instance.SetSceneToServer("Home");
+        ClientGameManager.Instance.RequestServerSceneChange(GameScene.Home, GameScene.Home.ToString());
     }
 }

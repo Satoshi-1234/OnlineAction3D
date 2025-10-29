@@ -1,47 +1,46 @@
 using Mirror;
+using System;
 using System.Collections;
+//using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-//using System.Security.Principal;
-//using System.Threading;
+using System.Threading.Tasks; // ★ Taskを使うために必要
+//using UnityEditor.SceneManagement;
+
+//using System.Linq;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
-
+using UnityEngine.ResourceManagement.ResourceProviders;
+using UnityEngine.SceneManagement;
 public enum ClientConnectStatus
 {
     CONNECT_NONE,       //接続していない
     CONNECT_SUCCESS,    //接続成功
 }
-public class ClientGameManager : NetworkManager
+public class ClientGameManager : NetworkManager // NetworkManagerを継承
 {
-    // このクラスの唯一のインスタンスを保持する (シングルトン)
     public static ClientGameManager Instance { get; private set; }
     [Header("認証プレハブ")]
-    [Tooltip("実行時に生成する認証コンポーネントのプレハブ")]
     public GameObject authenticatorPrefab;
-    private ClientConnectStatus connectStatus = ClientConnectStatus.CONNECT_NONE;     // 通信管理フラグ
+    private ClientConnectStatus connectStatus = ClientConnectStatus.CONNECT_NONE;
     private bool isInitialized = false;
-    AsyncOperationHandle<IList<GameObject>> loadHandle;
-    private List<GameObject> loadedPrefabs = new List<GameObject>();
-    /// <summary>
-    /// サーバーの接続状態
-    /// </summary>
+    // ハンドルとプレハブリストは不要になったので削除
+    AsyncOperationHandle<IList<GameObject>> loadHandle = default;
+
     public ClientConnectStatus GetConnectStatus() => connectStatus;
     public bool GetInitialized() => isInitialized;
-    public override void Awake()
+
+    public GameScene StringToGameScene(string str)
     {
-        base.Awake();//test
-        // シングルトンパターンの実装
-        if (Instance == null)
+        if (Enum.TryParse(str, out GameScene parsedScene))
         {
-            Instance = this;
-            DontDestroyOnLoad(gameObject.transform.root.gameObject); // シーンをまたいで存在させる
+            // 成功時
+            Debug.Log($"変換成功: {parsedScene}");
+            return parsedScene;
         }
-        else
-        {
-            Destroy(gameObject);
-        }
+            // 失敗時
+        Debug.LogWarning($"'{str}' は GameScene 列挙体に存在しません。");
+        return GameScene.Debug;
     }
     void OnGUI()
     {
@@ -74,7 +73,7 @@ public class ClientGameManager : NetworkManager
             }
         }
         GUILayout.Label($"Valid Prefabs Count in spawnPrefabs: {validPrefabCount}"); // 有効なプレハブ数を表示
-                                                                                      // ★★★ ここまで修正 ★★★
+                                                                                     // ★★★ ここまで修正 ★★★
 
         GUILayout.Label("--- NetworkClient.prefabs ---");
         int validNetworkClientPrefabCount = 0;
@@ -102,142 +101,120 @@ public class ClientGameManager : NetworkManager
         GUILayout.Label($"Valid Prefabs Count in NetworkClient.prefabs: {validNetworkClientPrefabCount}"); // 有効なプレハブ数を表示
         GUILayout.Label("--------------------------");
     }
+    // (Awakeは変更なし)
+    public override void Awake()
+    {
+        base.Awake();
+        if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject.transform.root.gameObject); }
+        else { Destroy(gameObject); }
+    }
 
-    public override void Start()//test
+    // ★★★ Startを async void に変更 ★★★
+    public override async void Start()
     {
         base.Start();
-        StartCoroutine(Initialized());
-    }
-    private async void RegisterAddressablePrefabsAsyncTest()
-    {
-        Debug.Log("[Client] Addressablesからプレハブの読み込みを開始します...");
-        var handle = Addressables.LoadAssetsAsync<GameObject>("Character", null);
-        await handle.Task;
-        if (handle.Status == AsyncOperationStatus.Succeeded)
-        {
-            IList<GameObject> prefabs = handle.Result;
-            loadedPrefabs.Clear();
-            int count = 0;
-            foreach (var prefab in prefabs)
-            {
-                if (prefab != null)
-                {
-                    if (!spawnPrefabs.Contains(prefab))
-                    {
-                        spawnPrefabs.Add(prefab);
-                    }
-                    //NetworkClient.RegisterPrefab(prefab);
-                    loadedPrefabs.Add(prefab);
-                    count++;
-                }
-            }
-            isInitialized = true;
-            Debug.Log($"[Client] {count} 個のプレハブをAddressablesから登録しました。");
-        }
-        else
-        {
-            Debug.LogError("[Client] LoadAssetsAsync の呼び出し中に例外が発生！");
-        }
-    }
-    IEnumerator Initialized()//test:start
-    {
-        Debug.Log("[Client] Done waiting. Starting Addressables 初期化処理を開始します...");
-        // ハンドルを変数に保持しない → IsValid() や Status に触らない
-        yield return Addressables.InitializeAsync();
-
-        Debug.Log("[Client] Addressables initialized.");
-        Debug.Log($"[Client] Catalogs Count ({Addressables.ResourceLocators.Count()})");
-
-        // --- プレハブの読み込みと登録 ---
-        //yield return RegisterAddressablePrefabsAsync();
-        RegisterAddressablePrefabsAsyncTest();
-        // --- Authenticatorの設定 ---
-        SetupAuthenticator();
-        // --- 初期化完了 ---
-        //isInitialized = true;
-        Debug.Log("[Client] 初期化処理が完了しました。接続可能です。");
-    }
-
-
-
-    private IEnumerator RegisterAddressablePrefabsAsync()
-    {
-        Debug.Log("[Client] Addressablesからプレハブの読み込みを開始します...");
+        if (isInitialized) return;
+        Debug.Log("[Client] 初期化処理を開始します...");
 
         try
         {
-            loadHandle = Addressables.LoadAssetsAsync<GameObject>("Character", null);
+            await Addressables.InitializeAsync().Task;
+            Debug.Log("[Client] Addressables初期化完了。");
+            bool loadSuccess = await RegisterAddressablePrefabsAsyncTask();
+            // Addressables.Release(initHandle); // 通常解放不要
+
+            if (!loadSuccess)
+            {
+                Debug.LogError("[Client] プレハブのロード/登録に失敗したため、初期化を中断します。");
+                return; // プレハブがなければ続行できない
+            }
+
+            // --- Authenticatorの設定 ---
+            SetupAuthenticator();
+
+            // --- 初期化完了 ---
+            isInitialized = true;
+            Debug.Log("[Client] 初期化処理が完了しました。接続可能です。");
         }
         catch (System.Exception ex)
         {
-            Debug.LogError("[Client] LoadAssetsAsync の呼び出し中に例外が発生！");
+            // 初期化プロセス全体で予期せぬ例外が発生した場合
+            Debug.LogError("[Client] 初期化プロセス中に例外が発生しました。");
             Debug.LogException(ex);
-            yield break;
-        }
-
-        // tryの外で yield return（C#制約対策）
-        yield return loadHandle;
-
-        if (!loadHandle.IsValid())
-        {
-            Debug.LogError("[Client] LoadAssetsAsync ハンドルが完了後に無効になりました。");
-            yield break;
-        }
-
-        if (loadHandle.Status == AsyncOperationStatus.Succeeded)
-        {
-            IList<GameObject> prefabs = loadHandle.Result;
-            int count = 0;
-            //roadObjectName.Clear();
-            loadedPrefabs.Clear();
-            foreach (var prefab in prefabs)
-            {
-                if (prefab != null)
-                {
-                    if (!spawnPrefabs.Contains(prefab))
-                    {
-                        spawnPrefabs.Add(prefab);
-                    }
-                    //NetworkClient.RegisterPrefab(prefab);
-                    loadedPrefabs.Add(prefab);
-                    count++;
-                }
-            }
-            Debug.Log($"[Client] {count} 個のプレハブをAddressablesから登録しました。");
-        }
-        else
-        {
-            Debug.LogError("[Client] プレハブの読み込みに失敗しました。 Status: " + loadHandle.Status);
-            if (loadHandle.OperationException != null)
-                Debug.LogException(loadHandle.OperationException);
         }
     }
 
-
-
-
-    private void SetupAuthenticator()
+    // ★★★ async Task<bool> に変更し、try-catchを追加 ★★★
+    private async Task<bool> RegisterAddressablePrefabsAsyncTask()
     {
-        NetworkManager manager = GetComponent<NetworkManager>();
-        if (manager != null && authenticatorPrefab != null)
+        Debug.Log("[Client] Addressablesからプレハブの読み込みを開始します...");
+        try
         {
-            GameObject authInstance = Instantiate(authenticatorPrefab, manager.transform);
-            CustomNetworkManager authComponent = authInstance.GetComponent<CustomNetworkManager>();
-            if (authComponent != null)
+            loadHandle = Addressables.LoadAssetsAsync<GameObject>("Character", null);
+            // ★ awaitで完了を待つ ★
+            IList<GameObject> prefabs = await loadHandle.Task;
+
+            if (loadHandle.Status == AsyncOperationStatus.Succeeded)
             {
-                manager.authenticator = authComponent;
-                Debug.Log($"[Client] Authenticator '{authInstance.name}' を動的に設定しました。");
+                int count = 0;
+                foreach (var prefab in prefabs)
+                {
+                    if (prefab != null)
+                    {
+                        // spawnPrefabsリストはNetworkManagerが持つ
+                        if (!spawnPrefabs.Contains(prefab))
+                        {
+                            spawnPrefabs.Add(prefab);
+                            count++;
+                        }
+                        // NetworkClientへの登録も行う (重複登録は内部で無視されるはず)
+                        //NetworkClient.RegisterPrefab(prefab);
+                    }
+                }
+                Debug.Log($"[Client] {count} 個の新規プレハブをAddressablesから登録しました。");
+                return true; // 成功
             }
             else
             {
-                Debug.LogError("[Client] Authenticator PrefabにCustomNetworkManagerコンポーネントが見つかりません！");
+                Debug.LogError("[Client] Addressablesからのプレハブ読み込みに失敗しました。 Status: " + loadHandle.Status);
+                if (loadHandle.OperationException != null) Debug.LogException(loadHandle.OperationException);
+                return false; // 失敗
             }
         }
-        // (エラー/警告ログは省略)
+        catch (System.Exception ex)
+        {
+            Debug.LogError("[Client] RegisterAddressablePrefabsAsyncTask中に例外が発生！");
+            Debug.LogException(ex);
+            return false; // 失敗
+        }
     }
-
-    // (OnEnable, OnDisable, OnAuthenticationSuccess, OnDisconnected, ConnectToServer, SetSceneToServer は変更なし)
-    #region Network Callbacks and Connection
+    public override void OnDestroy() // NetworkManagerを継承しているので override
+    {
+        base.OnDestroy(); // 基底クラスの処理を呼ぶ
+        if (loadHandle.IsValid())
+        {
+            Addressables.Release(loadHandle);
+            Debug.Log("[Client] Addressables LoadAssetsAsync ハンドルを解放しました。");
+        }
+    }
+    // (SetupAuthenticator以下のメソッドは変更なし)
+    #region Setup, Network Callbacks, Connection
+    private void SetupAuthenticator()
+    {
+        // NetworkManagerを継承しているので GetComponent は不要
+        if (authenticatorPrefab != null)
+        {
+            GameObject authInstance = Instantiate(authenticatorPrefab, transform);
+            CustomNetworkManager authComponent = authInstance.GetComponent<CustomNetworkManager>();
+            if (authComponent != null)
+            {
+                authenticator = authComponent; // 自分自身のauthenticatorフィールドに設定
+                Debug.Log($"[Client] Authenticator '{authInstance.name}' を動的に設定しました。");
+            }
+            else { Debug.LogError("[Client] Authenticator PrefabにCustomNetworkManagerコンポーネントが見つかりません！"); }
+        }
+        else if (authenticator == null) { Debug.LogWarning("[Client] Authenticator Prefabが設定されていません。"); }
+    }
 
     void OnEnable()
     {
@@ -268,18 +245,6 @@ public class ClientGameManager : NetworkManager
     {
         Debug.LogWarning("サーバーから切断されました。");
         connectStatus = ClientConnectStatus.CONNECT_NONE;
-    }
-    public override void OnDestroy()
-    {
-        base.OnDestroy();
-        // アプリケーション終了時に保持リストをクリア（参照を解放）
-        loadedPrefabs.Clear();
-        if (loadHandle.IsValid())
-        {
-            Addressables.Release(loadHandle);
-            Debug.Log("[Client] Addressables LoadAssetsAsync ハンドルを解放しました。");
-        }
-        Debug.Log("[Client] ClientGameManager destroyed.");
     }
     /// <summary>
     /// UIから呼び出されるサーバー接続メソッド
@@ -323,19 +288,122 @@ public class ClientGameManager : NetworkManager
         }
     }
 
-    public void RequestServerSceneChange(GameScene requestedScene)
+    public void RequestServerSceneChange(GameScene requestedScene,
+        string requestedSceneName = "none",
+        SceneOperation sceneOperation = SceneOperation.LoadAdditive,
+        bool customHandling = true)
     {
         if (connectStatus == ClientConnectStatus.CONNECT_SUCCESS && NetworkClient.isConnected)
         {
             // Enumをサーバーが理解できる形式 (intやstring) に変換して送信
             // 例: phase 3 がシーン遷移リクエスト、requestedScene.ToString() でシーン名を送る
             Debug.Log($"[Client] Send Scene Change Request: {requestedScene}");
-            NetworkClient.Send(new ClientSceneChangeRequest { _targetSceneName = requestedScene.ToString() }); // 新しいメッセージ型を定義
+            NetworkClient.Send(new ClientSceneChangeRequest { 
+                _nextSceneLabel = requestedScene,
+                _targetSceneName = requestedSceneName, 
+                _sceneOperation = sceneOperation,
+                _customHandling=customHandling });
         }
         else
         {
             Debug.LogError("[Client] サーバーに接続されていません。");
         }
+    }
+
+    /// <summary>
+    /// サーバーからのSceneMessageを受け取った際の処理をオーバーライド
+    /// </summary>
+    public override void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling)
+    {
+        Debug.Log($"[Client] OnClientChangeScene Received: {newSceneName}, SceneOperation: {sceneOperation}");
+
+        // Addressablesでロードするため、Mirrorのデフォルト処理は行わない
+        // base.OnClientChangeScene(newSceneName, sceneOperation, customHandling); // ← 呼び出さない
+
+        // Addressables経由でシーンをロードするコルーチンを開始
+        StartCoroutine(LoadSceneAddressable(newSceneName, sceneOperation, customHandling));
+    }
+
+    /// <summary>
+    /// Addressablesでシーンをロードし、完了後にサーバーへ通知するコルーチン
+    /// </summary>
+    private IEnumerator LoadSceneAddressable(string sceneAddressOrLabel, SceneOperation sceneOperation, bool customHandling)
+    {
+        if (!ClientGameManager.Instance.GetInitialized())
+        {
+            Debug.LogWarning($"[Client] ClientGameManager Not GetInitialized");
+            yield break;
+        }
+        LoadSceneMode loadMode = sceneOperation == SceneOperation.Normal ? LoadSceneMode.Single : LoadSceneMode.Additive;
+        Debug.Log($"[Client] Addressablesシーンロード開始: {sceneAddressOrLabel} ({loadMode}) - {customHandling}");
+        AsyncOperationHandle<SceneInstance> handle = default;
+        bool loadSuccess = false;
+
+        try
+        {
+            // trueでロード後自動アクティベート
+            handle = Addressables.LoadSceneAsync(sceneAddressOrLabel, loadMode, customHandling);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[Client] LoadSceneAsync 例外！ Address: {sceneAddressOrLabel}");
+            Debug.LogException(ex);
+        }
+
+        if (!handle.IsValid())
+        {
+            Debug.LogError($"[Client] LoadSceneAsync ハンドル無効 (呼び出し直後)。 Address: {sceneAddressOrLabel}");
+        }
+        else
+        {
+            // IsDoneで完了を待つ
+            while (!handle.IsDone)
+            {
+                yield return null;
+            }
+
+            if (!handle.IsValid()) { Debug.LogError($"[Client] LoadSceneAsync ハンドル無効 (完了後)。 Address: {sceneAddressOrLabel}"); }
+            else if (handle.Status == AsyncOperationStatus.Succeeded)
+            {
+                Debug.Log($"[Client] Addressables Scene Load Complete: {sceneAddressOrLabel}");
+                loadSuccess = true;
+
+                // ★ サーバーにロード完了を通知 (自作メッセージ) ★
+                NetworkClient.Send(new ClientSceneReadyRequest{ _nowScene = StringToGameScene(sceneAddressOrLabel)}); // 以前の ClientSceneReadyRequest から変更
+
+                // ★ Mirrorに準備完了を通知 (重要！) ★
+                if (!NetworkClient.ready) // 既にReadyでない場合のみ呼び出す
+                {
+                    NetworkClient.Ready();
+                }
+            }
+            else
+            {
+                Debug.LogError($"[Client] Addressables Scene Load Failed: {sceneAddressOrLabel}, Status: {handle.Status}");
+                if (handle.OperationException != null) Debug.LogException(handle.OperationException);
+            }
+
+            // ハンドル解放
+            //Addressables.Release(handle);
+        }
+
+        // ロード失敗時は切断など
+        if (!loadSuccess)
+        {
+            Debug.LogError($"シーンロード失敗のため切断します: {sceneAddressOrLabel}");
+            NetworkClient.Disconnect();
+        }
+    }
+
+    /// <summary>
+    /// Mirrorにシーンロード完了を伝えた後に呼び出される
+    /// </summary>
+    public override void OnClientSceneChanged()
+    {
+        base.OnClientSceneChanged(); // Mirrorの基本処理 (Ready状態の設定など)
+        Debug.Log("[Client] OnClientSceneChanged Called after Addressables load.");
+        // 必要であれば、シーンロード後の追加処理をここに記述
+        // 例: 新しいシーンのカメラ設定、UIの初期化など
     }
     #endregion
 }
