@@ -164,6 +164,12 @@ public class ServerGameManager : NetworkManager
     public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
         Debug.Log($"[Server] OnServerAddPlayer: conn {conn.connectionId} Generated");
+        Debug.LogWarning($"[Server-Conn] ConnectionId: {conn.connectionId}");
+        Debug.LogWarning($"[Server-Conn] Address: {conn.address}");
+        Debug.LogWarning($"[Server-Conn] isReady: {conn.isReady}");
+        Debug.LogWarning($"[Server-Conn] isAuthenticated: {conn.isAuthenticated}");
+        Debug.LogWarning($"[Server-Conn] (Observing) Objects Num: {conn.observing.Count}");
+        Debug.LogWarning($"[Server-Conn] (Owned) Objects Num: {conn.owned.Count}");
         GameObject player = Instantiate(playerPrefab);
         // PlayerConnection‚Ì‰Â‹«‚ğŠ—LÒ‚Ì‚İ‚ÉŒÀ’è‚·‚é
         NetworkIdentity identity = player.GetComponent<NetworkIdentity>();
