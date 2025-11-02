@@ -16,6 +16,26 @@ public class PlayerState : NetworkBehaviour
         // このオブジェクトが生成されたら、シーンをまたいでも破棄されないように設定する
         Debug.Log($"[DEBUG/CLIENT] PlayerState.OnStartClient");
         DontDestroyOnLoad(this.gameObject);
+        base.OnStartClient();
+        Debug.LogWarning($"[Client-PlayerState] OnStartClient: netId={netId}. オブジェクトは生成されました。");
+    }
+    /// <summary>
+    /// オブジェクトの「所有権」がクライアントに与えられた瞬間に呼ばれます
+    /// </summary>
+    public override void OnStartAuthority()
+    {
+        base.OnStartAuthority();
+        Debug.LogWarning($"[Client-PlayerState] OnStartAuthority: netId={netId}. 所有権が与えられました。");
+    }
+
+    /// <summary>
+    /// オブジェクトが「ローカルプレイヤー」として設定された瞬間に呼ばれます
+    /// </summary>
+    public override void OnStartLocalPlayer()
+    {
+        base.OnStartLocalPlayer();
+        Debug.LogWarning($"[Client-PlayerState] OnStartLocalPlayer: netId={netId}. ★★★ローカルプレイヤーとして設定されました★★★");
+        // このログが表示されれば、NetworkClient.localPlayer は null ではなくなります
     }
 #if !UNITY_SERVER
     private void Awake()

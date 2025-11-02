@@ -105,7 +105,11 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
     public override void Awake()
     {
         base.Awake();
-        if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject.transform.root.gameObject); }
+        if (Instance == null) 
+        { 
+            Instance = this; 
+            DontDestroyOnLoad(gameObject.transform.root.gameObject); 
+        }
         else { Destroy(gameObject); }
     }
 
@@ -159,17 +163,28 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
                 int count = 0;
                 foreach (var prefab in prefabs)
                 {
-                    if (prefab != null)
+                    if (prefab == null) continue;
+
+                    //spawnPrefabsリストはNetworkManagerが持つ
+                    if (!spawnPrefabs.Contains(prefab))
                     {
-                        // spawnPrefabsリストはNetworkManagerが持つ
-                        if (!spawnPrefabs.Contains(prefab))
+                        if (prefab.GetComponent<PlayerState>() != null)
                         {
-                            spawnPrefabs.Add(prefab);
-                            count++;
+                            Debug.Log($"[Client] Addressablesから 'Player' (魂) プレハブをロードしました: {prefab.name}");
+                            // OnServerAddPlayer で使用する 'playerPrefab' を上書き
+                            playerPrefab = prefab;
+
+                            NetworkIdentity identityToRegister = playerPrefab.GetComponent<NetworkIdentity>();
+                            Debug.LogWarning($"[Client-Register] 'Player' プレハブを登録します。");
+                            Debug.LogWarning($"[Client-Register] 登録する AssetID: {identityToRegister.assetId}");
+                            //continue;
                         }
-                        // NetworkClientへの登録も行う (重複登録は内部で無視されるはず)
-                        //NetworkClient.RegisterPrefab(prefab);
+
+                        spawnPrefabs.Add(prefab);
+                        count++;
                     }
+                    // NetworkClientへの登録も行う (重複登録は内部で無視されるはず)
+                    //NetworkClient.RegisterPrefab(prefab);
                 }
                 Debug.Log($"[Client] {count} 個の新規プレハブをAddressablesから登録しました。");
                 return true; // 成功
@@ -290,7 +305,7 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
 
     public void RequestServerSceneChange(GameScene requestedScene,
         string requestedSceneName = "none",
-        SceneOperation sceneOperation = SceneOperation.LoadAdditive,
+        SceneOperation sceneOperation = SceneOperation.Normal,
         bool customHandling = true)
     {
         if (connectStatus == ClientConnectStatus.CONNECT_SUCCESS && NetworkClient.isConnected)
@@ -317,8 +332,11 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
     {
         Debug.Log($"[Client] OnClientChangeScene Received: {newSceneName}, SceneOperation: {sceneOperation}");
 
-        // Addressablesでロードするため、Mirrorのデフォルト処理は行わない
-        // base.OnClientChangeScene(newSceneName, sceneOperation, customHandling); // ← 呼び出さない
+        if (NetworkClient.isConnected)
+        {
+            //Debug.Log($"[Client] NetworkClient Ready:{NetworkClient.ready}");
+            NetworkClient.ready = false;
+        }
 
         // Addressables経由でシーンをロードするコルーチンを開始
         StartCoroutine(LoadSceneAddressable(newSceneName, sceneOperation, customHandling));
@@ -365,24 +383,34 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
             if (!handle.IsValid()) { Debug.LogError($"[Client] LoadSceneAsync ハンドル無効 (完了後)。 Address: {sceneAddressOrLabel}"); }
             else if (handle.Status == AsyncOperationStatus.Succeeded)
             {
+                // ★★★ 修正点 ★★★
+                // LoadSceneMode.Single によって NetworkClient.prefabs がクリアされたため、
+                // ここでプレハブを再登録します。
+                // (spawnPrefabs リストは DontDestroyOnLoad で保持されているはず)
+                //Debug.LogWarning($"[Client-Fix] シーンロード完了。NetworkClient.prefabs を再登録します...");
+                //int registeredCount = 0;
+                //foreach (var prefab in spawnPrefabs) //
+                //{
+                //    if (prefab != null)
+                //    {
+                //        NetworkClient.RegisterPrefab(prefab); //
+                //        registeredCount++;
+                //    }
+                //}
+                //Debug.LogWarning($"[Client-Fix] {registeredCount} 個のプレハブを再登録しました。");
+
                 Debug.Log($"[Client] Addressables Scene Load Complete: {sceneAddressOrLabel}");
                 loadSuccess = true;
-
-                // ★ サーバーにロード完了を通知 (自作メッセージ) ★
-                NetworkClient.Send(new ClientSceneReadyRequest{ _nowScene = StringToGameScene(sceneAddressOrLabel)}); // 以前の ClientSceneReadyRequest から変更
-
-                // ★ Mirrorに準備完了を通知 (重要！) ★
-                if (!NetworkClient.ready) // 既にReadyでない場合のみ呼び出す
-                {
-                    NetworkClient.Ready();
-                }
+                //SceneManager.SetActiveScene(handle.Result.Scene);
+                // ここでAwake()/OnEnable()は完了しているが Start() はまだ
+                yield return null; // 1フレーム待つと全てのStart()完了
+                Debug.Log($"[Client-Debug] PlayerPrefab assetID-{playerPrefab.GetComponent<NetworkIdentity>().assetId}");
             }
             else
             {
                 Debug.LogError($"[Client] Addressables Scene Load Failed: {sceneAddressOrLabel}, Status: {handle.Status}");
                 if (handle.OperationException != null) Debug.LogException(handle.OperationException);
             }
-
             // ハンドル解放
             //Addressables.Release(handle);
         }
@@ -394,7 +422,6 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
             NetworkClient.Disconnect();
         }
     }
-
     /// <summary>
     /// Mirrorにシーンロード完了を伝えた後に呼び出される
     /// </summary>

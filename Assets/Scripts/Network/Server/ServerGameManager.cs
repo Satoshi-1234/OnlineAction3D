@@ -11,8 +11,9 @@ public class ServerGameManager : NetworkManager
     [Tooltip("実行時に生成する認証コンポーネントのプレハブ")]
     public GameObject authenticatorPrefab;
     [Header("キャラクタープレハブ")]
-    private GameObject[] characterPrefabs;
-    //#if UNITY_SERVER && !UNITY_EDITOR
+    private List<GameObject> characterPrefabs = new List<GameObject>();
+    private bool prefabsLoaded = false;
+    private Dictionary<int, bool> playerConnection = new Dictionary<int, bool>();
     public override void Awake()
     {
         base.Awake();
@@ -50,12 +51,24 @@ public class ServerGameManager : NetworkManager
         }
     }
 
+    private void FixedUpdate()
+    {
+        if (NetworkServer.active)
+        {
+            return;
+        }
+        if (NetworkManager.singleton != null)
+            Debug.LogError("[Server-Error] NetworkServer is not active during scene load");
+    }
 
     // プレイヤー生成を許可された接続IDのリスト
     private readonly HashSet<int> connectionsReadyForPlayer = new HashSet<int>();
     public override void OnStartServer()
     {
         base.OnStartServer();
+        // ★★★ テストコードをここに追加 ★★★
+        // Interest Management (AOI) を強制的に無効化する
+        NetworkServer.aoi = null;
         //Instance = this;
         NetworkServer.RegisterHandler<ClientReadyRequest>(OnClientReady);//廃棄予定
         NetworkServer.RegisterHandler<ClientSceneChangeRequest>(OnClientSceneChange);
@@ -81,19 +94,46 @@ public class ServerGameManager : NetworkManager
         await handle.Task;
         if (handle.Status == AsyncOperationStatus.Succeeded)
         {
-            characterPrefabs = handle.Result.ToArray();
-            foreach (var prefab in characterPrefabs)
+            List<GameObject> loadedCharacterModels = new List<GameObject>();
+            foreach (var prefab in handle.Result)
             {
-                if (prefab != null && !spawnPrefabs.Contains(prefab))
+                if (prefab == null) continue;
+                // A. 'PlayerState' コンポーネントを持つプレハブ (＝魂プレハブ)
+                if (prefab.GetComponent<PlayerState>() != null)
                 {
-                    spawnPrefabs.Add(prefab);
+                    Debug.Log($"[Server] Addressables 'Player' (Soul) Prefab Load: {prefab.name}");
+                    // OnServerAddPlayer で使用する 'playerPrefab' を上書き
+                    playerPrefab = prefab;
+                }
+                // B. 'NetworkPlayerController' を持つプレハブ (＝キャラクターモデル)
+                else if (prefab.GetComponent<NetworkPlayerController>() != null)
+                {
+                    loadedCharacterModels.Add(prefab);
+                    if (!spawnPrefabs.Contains(prefab))
+                    {
+                        spawnPrefabs.Add(prefab);
+                        characterPrefabs.Add(prefab);
+                    }
                 }
             }
-            Debug.Log($"[Server] {characterPrefabs.Length} 体のキャラクタープレハブをAddressablesから読み込みました。");
+
+            // 'playerPrefab' (魂) も spawnPrefabs リストに登録されていることを確認
+            if (playerPrefab != null && !spawnPrefabs.Contains(playerPrefab))
+            {
+                spawnPrefabs.Add(playerPrefab);
+            }
+            else if (playerPrefab == null)
+            {
+                Debug.LogError("[Server] 'Character' on the label 'PlayerState' No prefab found with !");
+            }
+            prefabsLoaded = true;
+            // ★★★ 修正点 3/3 ★★★
+            // SpawnCharacterForPlayer で使う 'characterPrefabs' 配列を、モデルのみで再構築
+            Debug.Log($"[Server] {characterPrefabs.Count} character model was loaded and registered from Addressables.");
         }
         else
         {
-            Debug.LogError("[Server] Addressablesからのキャラクタープレハブ読み込みに失敗しました。");
+            Debug.LogError("[Server] Failed to load character prefab from Addressables.");
         }
     }
 
@@ -126,12 +166,22 @@ public class ServerGameManager : NetworkManager
 
     void OnClientSceneChange(NetworkConnectionToClient conn,ClientSceneChangeRequest msg)
     {
-        Debug.Log($"[Server] GetClientSceneChangeRequest from {conn.connectionId}, TargetScene:{msg._targetSceneName}");
+        if(!playerConnection.ContainsKey(conn.connectionId))
+        {
+            playerConnection.Add(conn.connectionId,conn.isReady);
+            Debug.LogWarning($"[Server-Warnning] GetClientSceneChangeRequest from Not Log User:{conn.connectionId}, TargetScene:{msg._targetSceneName}");
+        }
+        else
+        {
+            Debug.Log($"[Server] GetClientSceneChangeRequest from {conn.connectionId}, TargetScene:{msg._targetSceneName}");
+        }
+        
         switch (msg._nextSceneLabel)
         {
             case GameScene.Title:
             case GameScene.Home:
             case GameScene.BattleCastle://test
+                Debug.Log($"[Server] SceneMessage: {msg._nextSceneLabel.ToString()}, sceneOperation: {msg._sceneOperation}, customHandling: {msg._customHandling}");
                 conn.Send(new SceneMessage { sceneName = msg._nextSceneLabel.ToString(), sceneOperation = msg._sceneOperation, customHandling = msg._customHandling });
                 break;
             case GameScene.Debug:
@@ -175,18 +225,49 @@ public class ServerGameManager : NetworkManager
     }
     public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
-        Debug.Log($"[Server] OnServerAddPlayer: conn {conn.connectionId} Generated");
+        if(!prefabsLoaded)
+        {
+            Debug.LogError($"[Server] OnServerAddPlayer: Dont Loaded");
+            return;
+        }
+        if (playerPrefab == null)
+        {
+            Debug.LogError($"[Server-Wernning] Not PlayerPrefab");
+            return;
+        }
+        if (playerConnection.ContainsKey(conn.connectionId))
+        {
+            Debug.Log($"[Server] GetClientAddPlayerRequest from :{conn.connectionId}, TargetScene:{conn.isReady}");
+        }
+        else
+        {
+            Debug.LogWarning($"[Server-Spawn] Not User: {conn.connectionId}");
+        }
+
+        Debug.LogWarning($"[Server-Conn] ConnectionId: {conn.connectionId}");
+        Debug.LogWarning($"[Server-Conn] Address: {conn.address}");
+        Debug.LogWarning($"[Server-Conn] isReady: {conn.isReady}");
+        Debug.LogWarning($"[Server-Conn] isAuthenticated: {conn.isAuthenticated}");
+        Debug.LogWarning($"[Server-Conn] (Observing) Objects Num: {conn.observing.Count}");
+        Debug.LogWarning($"[Server-Conn] (Owned) Objects Num: {conn.owned.Count}");
+
+        NetworkIdentity identityForSpawn = playerPrefab.GetComponent<NetworkIdentity>();
+        Debug.LogWarning($"[Server-Spawn] OnServerAddPlayer Execute");
+        Debug.LogWarning($"[Server-Spawn] Use Prefab: {playerPrefab.name}");
+        Debug.LogWarning($"[Server-Spawn] Send AssetID: {identityForSpawn.assetId}");
+        // ★★★ デバッグログここまで ★★★
+        Debug.Log($"[Server] OnServerAddPlayer: conn {conn.connectionId} Generated assetID-{playerPrefab.GetComponent<NetworkIdentity>().assetId}");
         GameObject player = Instantiate(playerPrefab);
         // PlayerConnectionの可視性を所有者のみに限定する
         NetworkIdentity identity = player.GetComponent<NetworkIdentity>();
-        identity.visibility = Visibility.ForceHidden; // まず全員から隠す
+        //identity.visibility = Visibility.ForceHidden; // まず全員から隠す
         NetworkServer.AddPlayerForConnection(conn, player); //AddObserverを行っている
         if (identity.observers.Count > 0) 
             Debug.Log($"[Server] observers Count: {identity.observers.Count}");
     }
     public void SpawnCharacterForPlayer(NetworkConnectionToClient conn, int characterId)
     {
-        if (characterId < 0 || characterId >= characterPrefabs.Length)
+        if (characterId < 0 || characterId >= characterPrefabs.Count)
         {
             Debug.LogError($"[Server-Error] invalid ID: {characterId}");
             return;

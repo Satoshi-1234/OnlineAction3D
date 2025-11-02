@@ -3,11 +3,12 @@ using UnityEngine;
 using Mirror;
 using TMPro;
 using System.Collections;
+using UnityEngine.SceneManagement;
 public class HomeSceneManager : SceneManagerBase
 {
     private int selectCharacterId = 0;      // キャラクターID
     private bool matchConnect = false;      // マッチング開始フラグ
-    private PlayerState playerState = null; // プレイヤー設定
+    //private PlayerState playerState = null; // プレイヤー設定
     [Header("キャラクター１ボタン")]
     public Button selectCharacter1;         // 接続ボタンを紐づける
     [Header("キャラクター２ボタン")]
@@ -15,58 +16,90 @@ public class HomeSceneManager : SceneManagerBase
     [Header("マッチング開始ボタン")]
     public Button startMatch;               // マッチング開始ボタンを紐づける
 
-    // StartをIEnumeratorに変更
-    private IEnumerator Start()
+    /// <summary>
+    /// 【Homeシーン固有の処理】
+    /// プレイヤー準備ロジックをオーバーライド
+    /// </summary>
+    protected override IEnumerator EnsurePlayerIsReady()
     {
-        // ★★★ プレイヤーオブジェクトが準備されるのを待つ ★★★
-        yield return GetPlayerState();
+        // Homeシーンは、localPlayer がまだ存在しないはず
+        if (NetworkClient.localPlayer != null)
+        {
+            Debug.LogWarning("[Client-Home] 既に localPlayer が存在します。");
+            localPlayerState = NetworkClient.localPlayer.GetComponent<PlayerState>();
+            yield break;
+        }
 
+        // サーバーにプレイヤー ("魂") の生成を要求
+        Debug.Log("[Client-Home] サーバーに Player オブジェクトの生成を要求します。");
+        NetworkClient.AddPlayer();
+        // ★★★ ここからデバッグログを追加 ★★★
+        Debug.LogWarning("--- [Client-Home] AddPlayer() 呼び出し直後のクライアント状態 ---");
+
+        // 1. 接続と認証の状態
+        Debug.LogWarning($"[Client-State] NetworkClient.isConnected: {NetworkClient.isConnected}");
+        Debug.LogWarning($"[Client-State] NetworkClient.ready: {NetworkClient.ready}");
+
+        if (NetworkClient.connection != null)
+        {
+            // ★ 修正 ★ NetworkClient.isAuthenticated -> NetworkClient.connection.isAuthenticated
+            Debug.LogWarning($"[Client-State] NetworkClient.connection.isAuthenticated: {NetworkClient.connection.isAuthenticated}");
+            //Debug.LogWarning($"[Client-State] NetworkClient.connection.connectionId: {NetworkClient.connection.connectionId}");
+        }
+        else
+        {
+            Debug.LogError("[Client-State] NetworkClient.connection が null です！");
+        }
+
+        // 2. 現在のシーン
+        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        Debug.LogWarning($"[Client-State] Active Scene: {sceneName}");
+
+        // 3. NetworkManager (ClientGameManager) の spawnPrefabs リストの状態
+        Debug.LogWarning("--- [Client-Home] NetworkManager.spawnPrefabs DUMP ---");
+
+        // 4. NetworkClient.prefabs 辞書の状態 (既存のログ)
+        Debug.LogWarning("--- [Client-Home] NetworkClient.prefabs DUMP ---");
+        int prefabCount = 0;
+        foreach (var kvp in NetworkClient.prefabs)
+        {
+            if (kvp.Value != null)
+            {
+                Debug.LogWarning($"[Client-Dump-NC] AssetID: {kvp.Key} = Prefab: {kvp.Value.name}");
+                prefabCount++;
+            }
+            else
+            {
+                Debug.LogWarning($"[Client-Dump-NC] AssetID: {kvp.Key} = Prefab: NULL");
+            }
+        }
+        Debug.LogWarning($"--- DUMP END (Total: {prefabCount} prefabs in NetworkClient.prefabs) ---");
+        // ★★★ デバッグログここまで ★★★
+        // サーバーが localPlayer を割り当てるのを待つ
+        while (NetworkClient.localPlayer == null)
+        {
+            Debug.Log("[Client-Home] サーバーが Player オブジェクトを割り当てるのを待機中...");
+            yield return new WaitForSeconds(0.1f); // ログ連打防止
+        }
+
+        // 基底クラスの localPlayerState にキャッシュ
+        localPlayerState = NetworkClient.localPlayer.GetComponent<PlayerState>();
+        Debug.Log("[Client-Home] PlayerStateの取得に成功しました！");
+    }
+
+    /// <summary>
+    /// 【Homeシーン固有の処理】
+    /// シーンの初期化（UIの有効化など）
+    /// </summary>
+    protected override void InitializeScene()
+    {
+        Debug.Log($"[Client/Home] UIの初期化を開始します。");
         if (startMatch != null)
         {
-            Debug.Log($"[Client/Home] Start Success");
             startMatch.GetComponentInChildren<TMP_Text>().text = "バトル開始";
         }
         UpdateButtonInteractble();
     }
-
-    // IEnumeratorに変更し、PlayerStateが取得できるまで待機するように修正
-    private IEnumerator GetPlayerState()
-    {
-        // localPlayerがnullの間、サーバーにプレイヤー追加を要求し続ける
-        while (!NetworkClient.ready)
-        {
-            // 準備ができていない間は、何もせず次のフレームを待つ
-            yield return null;
-        }
-
-        // 2. 接続の準備ができた後、もしプレイヤーオブジェクトがまだなければ、一度だけ要求する
-        if (NetworkClient.localPlayer == null)
-        {
-            Debug.Log("Connection is ready. Requesting player object from server...");
-            NetworkClient.AddPlayer();
-        }
-
-        // 3. サーバーがプレイヤーオブジェクトを割り当てるのを待つ
-        while (NetworkClient.localPlayer == null)
-        {
-            Debug.Log("Waiting for server to assign player object...");
-            yield return new WaitForSeconds(0.1f); // ログが大量に出ないように少し待つ
-        }
-
-        // localPlayerが見つかったら、playerStateにキャッシュする
-        playerState = NetworkClient.localPlayer.GetComponent<PlayerState>();
-        Debug.Log("PlayerStateの取得に成功しました！");
-    }
-
-    //private void GetPlayerState()
-    //{
-    //    if (NetworkClient.localPlayer != null && playerState == null)
-    //    {
-    //        playerState = NetworkClient.localPlayer.GetComponent<PlayerState>();
-    //        return;
-    //    }
-    //    if (playerState == null) Debug.LogWarning($"NetworkClient.localPlayer is Null");
-    //}
 
     /// <summary>
     /// キャラクター１ボタンが押されたときに呼び出されるメソッド
@@ -111,11 +144,15 @@ public class HomeSceneManager : SceneManagerBase
     {
         selectCharacter1.interactable = selectCharacterId != 0;
         selectCharacter2.interactable = selectCharacterId != 1;
-        GetPlayerState();
-        if (playerState != null)
+        if (localPlayerState != null)
         {
-            playerState.CmdSetCharacter(selectCharacterId);
+            localPlayerState.CmdSetCharacter(selectCharacterId);
             Debug.Log($"[Client] UpdateButtonInteractble");
-        }    
+        }
+        else
+        {
+            // InitializeScene より前に呼ばれる可能性があるため Warning に変更
+            Debug.LogWarning("[Client-Home] UpdateButtonInteractble 呼び出し時に localPlayerState が null です。");
+        }
     }
 }
