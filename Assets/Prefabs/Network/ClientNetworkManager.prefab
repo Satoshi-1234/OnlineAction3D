@@ -82,7 +82,7 @@ MonoBehaviour:
   sendRate: 60
   unreliableBaselineRate: 1
   unreliableRedundancy: 0
-  transport: {fileID: 0}
+  transport: {fileID: 2034049756550966840}
   networkAddress: localhost
   maxConnections: 100
   disconnectInactiveConnections: 0
@@ -92,7 +92,7 @@ MonoBehaviour:
   offlineScene: 
   onlineScene: 
   offlineSceneLoadDelay: 0
-  playerPrefab: {fileID: 8038647487566636325, guid: 7c6e2a8397e623148b6644dfe5740198, type: 3}
+  playerPrefab: {fileID: 0}
   autoCreatePlayer: 0
   playerSpawnMethod: 0
   spawnPrefabs: []

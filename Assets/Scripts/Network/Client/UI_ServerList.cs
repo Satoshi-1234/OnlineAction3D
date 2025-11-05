@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using TMPro;
 using System.Linq;
+using Mirror;
 //using VSCodeEditor;
 
 public class UI_ServerList : MonoBehaviour
@@ -152,5 +153,9 @@ public class UI_ServerList : MonoBehaviour
         Debug.Log("クライアントの準備完了をサーバーに通知します。");
         //ClientGameManager.Instance.SetSceneToServer("Home");
         ClientGameManager.Instance.RequestServerSceneChange(GameScene.Home, GameScene.Home.ToString());
+    }
+    private void OnDestroy()
+    {
+        Debug.LogError($"[Title] Destroy");
     }
 }
