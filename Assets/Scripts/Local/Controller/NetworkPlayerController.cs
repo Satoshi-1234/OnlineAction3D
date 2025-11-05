@@ -1,6 +1,5 @@
 using UnityEngine;
 using Mirror; // Mirror�̋@�\���g�����߂ɕK�{
-using System.Collections.Generic;
 // �K�v�ȃR���|�[�l���g�������ŃA�^�b�`
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(CapsuleCollider))]

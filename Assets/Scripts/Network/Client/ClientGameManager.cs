@@ -105,15 +105,58 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
     public override void Awake()
     {
         base.Awake();
+        Debug.Log($"[ClientGameManager] AWAKE. InstanceID: {this.GetInstanceID()}", this.gameObject); // ★追加
         if (Instance == null) 
         { 
             Instance = this; 
-            DontDestroyOnLoad(gameObject.transform.root.gameObject); 
+            DontDestroyOnLoad(gameObject.transform.root.gameObject);
+            #region DebugMessage Trasport
+            //try
+            //{
+            //    // NetworkManager.Awake() で transport が active になっているはずです。
+            //    if (Transport.active != null)
+            //    {
+            //        Debug.LogWarning("[ClientGameManager] HOOKING LOW-LEVEL TRANSPORT EVENTS...");
+
+            //        // これらはC#の event Action です (NetworkClient.cs 178行目)
+            //        Transport.active.OnClientConnected += () =>
+            //        {
+            //            // 接続成功時に必ず呼ばれる
+            //            Debug.LogAssertion("<<< [TRANSPORT EVENT] OnClientConnected >>>");
+            //        };
+
+            //        // データ受信時に必ず呼ばれる (NetworkClient.cs 319行目)
+            //        Transport.active.OnClientDataReceived += (data, channel) =>
+            //        {
+            //            if (SceneManager.GetActiveScene().name == "Home") return;
+            //            // これが動けば、データは受信できています
+            //            Debug.LogAssertion($"<<< [TRANSPORT EVENT] OnClientDataReceived (Size: {data.Count}) >>>");
+            //        };
+
+            //        // 切断時に必ず呼ばれる (NetworkClient.cs 411行目)
+            //        Transport.active.OnClientDisconnected += () =>
+            //        {
+            //            Debug.LogAssertion("<<< [TRANSPORT EVENT] OnClientDisconnected >>>");
+            //        };
+            //    }
+            //    else
+            //    {
+            //        Debug.LogError("[ClientGameManager] Transport.active is NULL in Awake! This is a critical error.");
+            //    }
+            //}
+            //catch (System.Exception e)
+            //{
+            //    Debug.LogError($"[ClientGameManager] Transport event hook failed: {e.Message}");
+            //}
+            #endregion
         }
-        else { Destroy(gameObject); }
+        else 
+        {
+            Debug.LogError($"[ClientGameManager] !!! 既存のInstanceがあるため、このInstance (ID: {this.GetInstanceID()}) は破棄されます。", this.gameObject);
+            Destroy(gameObject); 
+        }
     }
 
-    // ★★★ Startを async void に変更 ★★★
     public override async void Start()
     {
         base.Start();
@@ -170,21 +213,14 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
                     {
                         if (prefab.GetComponent<PlayerState>() != null)
                         {
-                            Debug.Log($"[Client] Addressablesから 'Player' (魂) プレハブをロードしました: {prefab.name}");
-                            // OnServerAddPlayer で使用する 'playerPrefab' を上書き
                             playerPrefab = prefab;
-
                             NetworkIdentity identityToRegister = playerPrefab.GetComponent<NetworkIdentity>();
-                            Debug.LogWarning($"[Client-Register] 'Player' プレハブを登録します。");
                             Debug.LogWarning($"[Client-Register] 登録する AssetID: {identityToRegister.assetId}");
-                            //continue;
+                            continue;
                         }
-
                         spawnPrefabs.Add(prefab);
                         count++;
                     }
-                    // NetworkClientへの登録も行う (重複登録は内部で無視されるはず)
-                    //NetworkClient.RegisterPrefab(prefab);
                 }
                 Debug.Log($"[Client] {count} 個の新規プレハブをAddressablesから登録しました。");
                 return true; // 成功
@@ -206,6 +242,7 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
     public override void OnDestroy() // NetworkManagerを継承しているので override
     {
         base.OnDestroy(); // 基底クラスの処理を呼ぶ
+        Debug.Log($"[ClientGameManager] !!! ONDESTROY (ID: {this.GetInstanceID()})", this.gameObject);
         if (loadHandle.IsValid())
         {
             Addressables.Release(loadHandle);
@@ -278,31 +315,6 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
         NetworkManager.singleton.StartClient();
     }
 
-    /// <summary>
-    /// シーン移行メソッド
-    /// </summary>
-    public void SetSceneToServer(string scene)
-    {
-        if (connectStatus == ClientConnectStatus.CONNECT_SUCCESS && NetworkClient.isConnected)
-        {
-            switch (scene)
-            {
-                case "Home":
-                    Debug.Log($"[Client] Send ClientReadyRequest:Home");
-                    NetworkClient.Send(new ClientReadyRequest { _phase = 1 });
-                    break;
-                case "BattleScene":
-                    Debug.Log($"[Client] Send ClientReadyRequest:BattleScene");
-                    NetworkClient.Send(new ClientReadyRequest { _phase = 2 });
-                    break;
-            }
-        }
-        else
-        {
-            Debug.LogError("サーバーに接続されていません。メッセージは送信できませんでした。");
-        }
-    }
-
     public void RequestServerSceneChange(GameScene requestedScene,
         string requestedSceneName = "none",
         SceneOperation sceneOperation = SceneOperation.Normal,
@@ -313,11 +325,13 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
             // Enumをサーバーが理解できる形式 (intやstring) に変換して送信
             // 例: phase 3 がシーン遷移リクエスト、requestedScene.ToString() でシーン名を送る
             Debug.Log($"[Client] Send Scene Change Request: {requestedScene}");
-            NetworkClient.Send(new ClientSceneChangeRequest { 
+            NetworkClient.Send(new ClientSceneChangeRequest
+            {
                 _nextSceneLabel = requestedScene,
-                _targetSceneName = requestedSceneName, 
+                _targetSceneName = requestedSceneName,
                 _sceneOperation = sceneOperation,
-                _customHandling=customHandling });
+                _customHandling = customHandling
+            });
         }
         else
         {
@@ -334,7 +348,6 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
 
         if (NetworkClient.isConnected)
         {
-            //Debug.Log($"[Client] NetworkClient Ready:{NetworkClient.ready}");
             NetworkClient.ready = false;
         }
 
@@ -352,6 +365,7 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
             Debug.LogWarning($"[Client] ClientGameManager Not GetInitialized");
             yield break;
         }
+
         LoadSceneMode loadMode = sceneOperation == SceneOperation.Normal ? LoadSceneMode.Single : LoadSceneMode.Additive;
         Debug.Log($"[Client] Addressablesシーンロード開始: {sceneAddressOrLabel} ({loadMode}) - {customHandling}");
         AsyncOperationHandle<SceneInstance> handle = default;
@@ -383,27 +397,8 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
             if (!handle.IsValid()) { Debug.LogError($"[Client] LoadSceneAsync ハンドル無効 (完了後)。 Address: {sceneAddressOrLabel}"); }
             else if (handle.Status == AsyncOperationStatus.Succeeded)
             {
-                // ★★★ 修正点 ★★★
-                // LoadSceneMode.Single によって NetworkClient.prefabs がクリアされたため、
-                // ここでプレハブを再登録します。
-                // (spawnPrefabs リストは DontDestroyOnLoad で保持されているはず)
-                //Debug.LogWarning($"[Client-Fix] シーンロード完了。NetworkClient.prefabs を再登録します...");
-                //int registeredCount = 0;
-                //foreach (var prefab in spawnPrefabs) //
-                //{
-                //    if (prefab != null)
-                //    {
-                //        NetworkClient.RegisterPrefab(prefab); //
-                //        registeredCount++;
-                //    }
-                //}
-                //Debug.LogWarning($"[Client-Fix] {registeredCount} 個のプレハブを再登録しました。");
-
-                Debug.Log($"[Client] Addressables Scene Load Complete: {sceneAddressOrLabel}");
-                loadSuccess = true;
-                //SceneManager.SetActiveScene(handle.Result.Scene);
-                // ここでAwake()/OnEnable()は完了しているが Start() はまだ
                 yield return null; // 1フレーム待つと全てのStart()完了
+                loadSuccess = true;
                 Debug.Log($"[Client-Debug] PlayerPrefab assetID-{playerPrefab.GetComponent<NetworkIdentity>().assetId}");
             }
             else

@@ -1,6 +1,8 @@
 using Mirror;
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.AddressableAssets;
 public enum GameScene 
 { 
     Debug,
@@ -11,6 +13,8 @@ public enum GameScene
 }
 public abstract class SceneManagerBase : MonoBehaviour
 {
+    // このクラスのシングルトンインスタンス
+    public static SceneManagerBase Instance { get; private set; }
     [Header("シーン設定")]
     [Tooltip("このシーンがどのシーンか")]
     [SerializeField]
@@ -20,6 +24,14 @@ public abstract class SceneManagerBase : MonoBehaviour
     public GameScene nextSceneRequest = GameScene.Home;
     public string nextSceneAddress = GameScene.Home.ToString();
 
+    [Header("ローカルオブジェクト設定")]
+    [Tooltip("このシーンで非同期にロードするローカルオブジェクト（建物、障害物など）のリスト")]
+    [SerializeField]
+    private List<AssetReference> localObjectsToLoad; // ★Inspectorで設定
+
+    private int totalObjectsToLoad = 0; // ロードすべき総数
+    private int readyObjectCount = 0;   // 準備完了の報告を受けた数
+
     protected PlayerState localPlayerState;
 
     /// <summary>
@@ -27,10 +39,76 @@ public abstract class SceneManagerBase : MonoBehaviour
     /// </summary>
     protected virtual IEnumerator Start()
     {
+        if (Instance != null)
+        {
+            Debug.LogWarning($"[SceneManagerBase] 警告: 古いInstanceが残っていました。上書きします。");
+        }
+        // 1. シングルトンとして自身を登録
+        Instance = this;
 
+        // -----------------------------------------------
+        // ▼ 2. ローカルオブジェクトのロードフェーズ
+        // -----------------------------------------------
+        Debug.Log($"[SceneManagerBase] ローカルオブジェクトのロードを開始します...");
+
+        totalObjectsToLoad = localObjectsToLoad.Count;
+        readyObjectCount = 0;
+
+        if (totalObjectsToLoad > 0)
+        {
+            // ★ リストをコピーして、無効な参照を安全に除外できるようにする
+            var validAssetsToLoad = new List<AssetReference>(localObjectsToLoad);
+
+            foreach (var assetRef in localObjectsToLoad)
+            {
+                // ★★★ ガード節を追加 ★★★
+                // アセットが割り当てられているか (GUIDが有効か) をチェック
+                if (assetRef == null || !assetRef.RuntimeKeyIsValid())
+                {
+                    Debug.LogError($"[SceneManagerBase] 'Local Objects To Load' リストに空または無効な参照が含まれています。Inspectorを確認してください。");
+
+                    // ★★★ 重要 ★★★
+                    // 永久待機を防ぐため、ロード対象の総数から除外する
+                    totalObjectsToLoad--;
+                    validAssetsToLoad.Remove(assetRef); // コピーしたリストから削除
+                    continue; // この空のアセットはスキップ
+                }
+            }
+
+            // ★修正★ 有効なアセットリストに対してInstantiateを実行
+            foreach (var assetRef in validAssetsToLoad)
+            {
+                Addressables.InstantiateAsync(assetRef);
+            }
+
+            // totalObjectsToLoad は既に無効な分が引かれているので、
+            // この待機ループは正しく動作する
+            Debug.Log($"[SceneManagerBase] 全 {totalObjectsToLoad} 個の（有効な）ローカルオブジェクトの準備完了報告を待機します...");
+            while (readyObjectCount < totalObjectsToLoad)
+            {
+                yield return null;
+            }
+
+            Debug.Log($"[SceneManagerBase] すべてのローカルオブジェクトが準備完了しました!");
+        }
+        else
+        {
+            Debug.LogWarning($"[SceneManagerBase] ローカルオブジェクトは0個です。");
+        }
+
+        // -----------------------------------------------
+        // ▼ 3. ネットワーク処理の開始フェーズ
+        // -----------------------------------------------
+        if (NetworkClient.isLoadingScene)
+        {
+            Debug.LogWarning($"[Client/{thisScene}] NetworkClient.isLoadingScene が true でした。強制的に false にリセットします。");
+            NetworkClient.isLoadingScene = false;
+        }
         Debug.Log($"[Client/{thisScene}] Mirrorに準備完了を通知します。");
+        Debug.Log($"[Client {thisScene}] IsConnected: {NetworkClient.isConnected}, ActiveHost: {NetworkClient.activeHost}");
+        
         NetworkClient.Ready();
-        // 1. プレイヤーオブジェクトの準備（シーンによって処理が異なる）
+
         yield return EnsurePlayerIsReady();
 
         if (localPlayerState == null)
@@ -59,7 +137,14 @@ public abstract class SceneManagerBase : MonoBehaviour
         localPlayerState = NetworkClient.localPlayer.GetComponent<PlayerState>();
         Debug.Log($"[{thisScene}] 既存のPlayerStateを取得しました。");
     }
-
+    protected virtual void OnDestroy()
+    {
+        Debug.Log($"[{thisScene}] Destroyed!");
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
     /// <summary>
     /// シーン固有の初期化（UI有効化など）。派生クラスで必ず実装する (abstract)
     /// </summary>
@@ -71,5 +156,14 @@ public abstract class SceneManagerBase : MonoBehaviour
     protected void RequestSceneTransition()
     {
         ClientGameManager.Instance.RequestServerSceneChange(nextSceneRequest, nextSceneAddress);
+    }
+
+    /// <summary>
+    /// LocalObjectReporterから呼び出されるコールバックメソッド
+    /// </summary>
+    public void ReportLocalObjectReady(GameObject reporter)
+    {
+        readyObjectCount++;
+        Debug.Log($"[SceneManagerBase] 完了報告: {reporter.name} (現在 {readyObjectCount} / {totalObjectsToLoad})");
     }
 }

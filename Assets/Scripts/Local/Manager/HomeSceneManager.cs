@@ -29,52 +29,9 @@ public class HomeSceneManager : SceneManagerBase
             localPlayerState = NetworkClient.localPlayer.GetComponent<PlayerState>();
             yield break;
         }
-
         // サーバーにプレイヤー ("魂") の生成を要求
         Debug.Log("[Client-Home] サーバーに Player オブジェクトの生成を要求します。");
         NetworkClient.AddPlayer();
-        // ★★★ ここからデバッグログを追加 ★★★
-        Debug.LogWarning("--- [Client-Home] AddPlayer() 呼び出し直後のクライアント状態 ---");
-
-        // 1. 接続と認証の状態
-        Debug.LogWarning($"[Client-State] NetworkClient.isConnected: {NetworkClient.isConnected}");
-        Debug.LogWarning($"[Client-State] NetworkClient.ready: {NetworkClient.ready}");
-
-        if (NetworkClient.connection != null)
-        {
-            // ★ 修正 ★ NetworkClient.isAuthenticated -> NetworkClient.connection.isAuthenticated
-            Debug.LogWarning($"[Client-State] NetworkClient.connection.isAuthenticated: {NetworkClient.connection.isAuthenticated}");
-            //Debug.LogWarning($"[Client-State] NetworkClient.connection.connectionId: {NetworkClient.connection.connectionId}");
-        }
-        else
-        {
-            Debug.LogError("[Client-State] NetworkClient.connection が null です！");
-        }
-
-        // 2. 現在のシーン
-        string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-        Debug.LogWarning($"[Client-State] Active Scene: {sceneName}");
-
-        // 3. NetworkManager (ClientGameManager) の spawnPrefabs リストの状態
-        Debug.LogWarning("--- [Client-Home] NetworkManager.spawnPrefabs DUMP ---");
-
-        // 4. NetworkClient.prefabs 辞書の状態 (既存のログ)
-        Debug.LogWarning("--- [Client-Home] NetworkClient.prefabs DUMP ---");
-        int prefabCount = 0;
-        foreach (var kvp in NetworkClient.prefabs)
-        {
-            if (kvp.Value != null)
-            {
-                Debug.LogWarning($"[Client-Dump-NC] AssetID: {kvp.Key} = Prefab: {kvp.Value.name}");
-                prefabCount++;
-            }
-            else
-            {
-                Debug.LogWarning($"[Client-Dump-NC] AssetID: {kvp.Key} = Prefab: NULL");
-            }
-        }
-        Debug.LogWarning($"--- DUMP END (Total: {prefabCount} prefabs in NetworkClient.prefabs) ---");
-        // ★★★ デバッグログここまで ★★★
         // サーバーが localPlayer を割り当てるのを待つ
         while (NetworkClient.localPlayer == null)
         {

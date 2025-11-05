@@ -13,7 +13,6 @@ public class ServerGameManager : NetworkManager
     [Header("キャラクタープレハブ")]
     private List<GameObject> characterPrefabs = new List<GameObject>();
     private bool prefabsLoaded = false;
-    private Dictionary<int, bool> playerConnection = new Dictionary<int, bool>();
     public override void Awake()
     {
         base.Awake();
@@ -61,16 +60,9 @@ public class ServerGameManager : NetworkManager
             Debug.LogError("[Server-Error] NetworkServer is not active during scene load");
     }
 
-    // プレイヤー生成を許可された接続IDのリスト
-    private readonly HashSet<int> connectionsReadyForPlayer = new HashSet<int>();
     public override void OnStartServer()
     {
         base.OnStartServer();
-        // ★★★ テストコードをここに追加 ★★★
-        // Interest Management (AOI) を強制的に無効化する
-        NetworkServer.aoi = null;
-        //Instance = this;
-        NetworkServer.RegisterHandler<ClientReadyRequest>(OnClientReady);//廃棄予定
         NetworkServer.RegisterHandler<ClientSceneChangeRequest>(OnClientSceneChange);
         NetworkServer.RegisterHandler<ClientSceneReadyRequest>(OnClientSceneReady);
         LoadCharacterPrefabsAsync();
@@ -78,7 +70,7 @@ public class ServerGameManager : NetworkManager
     public override void OnStopServer()
     {
         base.OnStopServer();
-        NetworkServer.UnregisterHandler<ClientReadyRequest>();
+        //NetworkServer.UnregisterHandler<ClientReadyRequest>();
         NetworkServer.UnregisterHandler<ClientSceneChangeRequest>();
         NetworkServer.UnregisterHandler<ClientSceneReadyRequest>();
     }
@@ -139,48 +131,19 @@ public class ServerGameManager : NetworkManager
 
     public override void OnServerDisconnect(NetworkConnectionToClient conn)
     {
-        // クライアントが切断したら、許可リストから削除する
-        connectionsReadyForPlayer.Remove(conn.connectionId);
-
         // baseの処理を呼び出して、プレイヤーオブジェクトなどを正しくクリーンアップする
         base.OnServerDisconnect(conn);
-    }
-    // クライアントが準備できたら呼ばれる
-    void OnClientReady(NetworkConnectionToClient conn, ClientReadyRequest msg)
-    {
-        Debug.Log($"[Server] GetReadyRequest from {conn.connectionId}, Phase:{msg._phase}");
-        switch (msg._phase)
-        {
-            case 1:
-                // シーン遷移を命令
-                conn.Send(new SceneMessage { sceneName = "Home" });
-                break;
-            case 2:
-                if (conn.identity != null)
-                {
-                    conn.Send(new SceneMessage { sceneName = "BattleStage" });
-                }
-                break;
-        }
     }
 
     void OnClientSceneChange(NetworkConnectionToClient conn,ClientSceneChangeRequest msg)
     {
-        if(!playerConnection.ContainsKey(conn.connectionId))
-        {
-            playerConnection.Add(conn.connectionId,conn.isReady);
-            Debug.LogWarning($"[Server-Warnning] GetClientSceneChangeRequest from Not Log User:{conn.connectionId}, TargetScene:{msg._targetSceneName}");
-        }
-        else
-        {
-            Debug.Log($"[Server] GetClientSceneChangeRequest from {conn.connectionId}, TargetScene:{msg._targetSceneName}");
-        }
-        
         switch (msg._nextSceneLabel)
         {
             case GameScene.Title:
+                break;
             case GameScene.Home:
             case GameScene.BattleCastle://test
+            case GameScene.BattleForest:
                 Debug.Log($"[Server] SceneMessage: {msg._nextSceneLabel.ToString()}, sceneOperation: {msg._sceneOperation}, customHandling: {msg._customHandling}");
                 conn.Send(new SceneMessage { sceneName = msg._nextSceneLabel.ToString(), sceneOperation = msg._sceneOperation, customHandling = msg._customHandling });
                 break;
@@ -188,8 +151,6 @@ public class ServerGameManager : NetworkManager
                 conn.Send(new SceneMessage { sceneName = msg._targetSceneName, sceneOperation = msg._sceneOperation, customHandling = msg._customHandling });
                 break;
         }
-
-        
     }
 
     void OnClientSceneReady(NetworkConnectionToClient conn, ClientSceneReadyRequest msg)
@@ -206,26 +167,10 @@ public class ServerGameManager : NetworkManager
             case GameScene.BattleCastle:
                 break;
         }
-        // ★★★ ここでマッチング参加者全員の準備が整ったかチェックするロジックを実装 ★★★
-        // 例:
-        // Match currentMatch = FindMatchContainingPlayer(conn);
-        // if (currentMatch != null)
-        // {
-        //     currentMatch.MarkPlayerAsReady(conn.connectionId);
-        //     if (currentMatch.AreAllPlayersReady())
-        //     {
-        //         StartMatchCountdown(currentMatch); // 全員準備完了なら試合開始処理へ
-        //     }
-        // }
-
-        // 注意: 以前の SetClientReady はここでは呼ばないこと。
-        // SetClientReady はプレイヤーオブジェクトの準備完了を意味し、
-        // シーンの準備完了とは別です。
-        // NetworkServer.SetClientReady(conn); // ← これは不要
     }
     public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
-        if(!prefabsLoaded)
+        if (!prefabsLoaded)
         {
             Debug.LogError($"[Server] OnServerAddPlayer: Dont Loaded");
             return;
@@ -235,35 +180,15 @@ public class ServerGameManager : NetworkManager
             Debug.LogError($"[Server-Wernning] Not PlayerPrefab");
             return;
         }
-        if (playerConnection.ContainsKey(conn.connectionId))
-        {
-            Debug.Log($"[Server] GetClientAddPlayerRequest from :{conn.connectionId}, TargetScene:{conn.isReady}");
-        }
-        else
-        {
-            Debug.LogWarning($"[Server-Spawn] Not User: {conn.connectionId}");
-        }
-
-        Debug.LogWarning($"[Server-Conn] ConnectionId: {conn.connectionId}");
-        Debug.LogWarning($"[Server-Conn] Address: {conn.address}");
-        Debug.LogWarning($"[Server-Conn] isReady: {conn.isReady}");
-        Debug.LogWarning($"[Server-Conn] isAuthenticated: {conn.isAuthenticated}");
-        Debug.LogWarning($"[Server-Conn] (Observing) Objects Num: {conn.observing.Count}");
-        Debug.LogWarning($"[Server-Conn] (Owned) Objects Num: {conn.owned.Count}");
-
-        NetworkIdentity identityForSpawn = playerPrefab.GetComponent<NetworkIdentity>();
-        Debug.LogWarning($"[Server-Spawn] OnServerAddPlayer Execute");
-        Debug.LogWarning($"[Server-Spawn] Use Prefab: {playerPrefab.name}");
-        Debug.LogWarning($"[Server-Spawn] Send AssetID: {identityForSpawn.assetId}");
         // ★★★ デバッグログここまで ★★★
         Debug.Log($"[Server] OnServerAddPlayer: conn {conn.connectionId} Generated assetID-{playerPrefab.GetComponent<NetworkIdentity>().assetId}");
         GameObject player = Instantiate(playerPrefab);
         // PlayerConnectionの可視性を所有者のみに限定する
         NetworkIdentity identity = player.GetComponent<NetworkIdentity>();
-        //identity.visibility = Visibility.ForceHidden; // まず全員から隠す
+        identity.visibility = Visibility.ForceHidden; // まず全員から隠す
         NetworkServer.AddPlayerForConnection(conn, player); //AddObserverを行っている
         if (identity.observers.Count > 0) 
-            Debug.Log($"[Server] observers Count: {identity.observers.Count}");
+            Debug.Log($"[Server] observers Count: {identity.observers.Count},Send assetID-{identity.assetId}");
     }
     public void SpawnCharacterForPlayer(NetworkConnectionToClient conn, int characterId)
     {

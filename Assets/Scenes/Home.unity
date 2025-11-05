@@ -872,8 +872,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thisScene: 2
-  nextSceneRequest: 3
-  nextSceneAddress: Home
+  nextSceneRequest: 0
+  nextSceneAddress: Assets/Scenes/Debug/Test.unity
+  localObjectsToLoad:
+  - m_AssetGUID: 
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_SubObjectGUID: 
+    m_EditorAssetChanged: 0
   selectCharacter1: {fileID: 1727413997}
   selectCharacter2: {fileID: 283364840}
   startMatch: {fileID: 1946186573}
