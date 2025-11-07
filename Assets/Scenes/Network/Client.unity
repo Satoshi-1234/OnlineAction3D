@@ -1558,8 +1558,8 @@ MonoBehaviour:
   serverDropdown: {fileID: 807103361}
   connectButton: {fileID: 2043351218}
   startButton: {fileID: 639107647}
-  serverIP: 192.168.11.10
-  serverPort: 7613
+  serverIP: 192.168.1.6
+  serverPort: 7426
   editorConnectButton: {fileID: 44972261}
 --- !u!4 &1027148877
 Transform:

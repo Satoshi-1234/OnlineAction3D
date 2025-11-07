@@ -1,0 +1,11 @@
+{
+  "name": "DebugTools.Editor",
+  "rootNamespace": "DebugTools.EditorUI",
+  "references": [
+    "DebugTools.Runtime",
+    "UnityEditor",
+    "UnityEngine"
+  ],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}
