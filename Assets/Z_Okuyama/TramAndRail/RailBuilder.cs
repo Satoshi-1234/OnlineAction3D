@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+ï»¿#if UNITY_EDITOR
 using UnityEditor;
 #endif
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Splines;
 
-//XV‘Î‰AMeshRenderer’Ç‰Á
+//æ›´æ–°å¯¾å¿œã€MeshRendererè¿½åŠ 
 [ExecuteAlways, RequireComponent(typeof(MeshRenderer))]
 public class RailBuilder : MonoBehaviour
 {
@@ -33,7 +33,7 @@ public class RailBuilder : MonoBehaviour
 		public float railWidth, railThickness;
 		public int twistMode;
 
-		//”äŠr
+		//æ¯”è¼ƒ
 		public bool Equals(RailSettings o)
 		{
 			return maxStep == o.maxStep && minStep == o.minStep
@@ -49,23 +49,27 @@ public class RailBuilder : MonoBehaviour
 
 	[SerializeField] SplineContainer _splineContainer;
 
-	//ƒTƒ“ƒvƒŠƒ“ƒO‚Æ‚©ƒIƒtƒZƒbƒg‚È‚Ç‚ÌŒvZŒn
+	const float kEpsilon = 1e-8f;
+
+	//ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°ã¨ã‹ã‚ªãƒ•ã‚»ãƒƒãƒˆãªã©ã®è¨ˆç®—ç³»
 	[Header("Sampling")]
 	[SerializeField, Range(0.1f, 1f)] float _maxStep = 0.5f;
 	[SerializeField, Range(0.05f, 0.5f)] float _minStep = 0.1f;
 	[SerializeField, Range(1f, 10f)] float _maxAngle = 3f;
 	[SerializeField] TwistMode _twistMode = TwistMode.ParallelTransport;
 
-	//Rail‚ÌƒƒbƒVƒ…¶¬ŠÖŒW
+	const float kNarrowGaugeRailwayHalf = 0.5335f;//ç‹­è»Œã®åŠåˆ†
+
+	//Railã®ãƒ¡ãƒƒã‚·ãƒ¥ç”Ÿæˆé–¢ä¿‚
 	[Header("Rail")]
-	[SerializeField, Range(0.1f, 1f)] float _railTrackWidthHalf = 0.5335f; //‹·‹O‚Ì”¼•ª
-	[SerializeField, Range(0.01f, 0.5f)] float _railWidth = 0.1f;//‰¡•
-	[SerializeField, Range(0.01f, 0.5f)] float _railThickness = 0.05f;//Œú‚³
+	[SerializeField, Range(0.1f, 1f)] float _railTrackWidthHalf = kNarrowGaugeRailwayHalf;
+	[SerializeField, Range(0.01f, 0.5f)] float _railWidth = 0.1f;//æ¨ªå¹…
+	[SerializeField, Range(0.01f, 0.5f)] float _railThickness = 0.05f;//åšã•
 
 
-	//XVŠÖŒW
+	//æ›´æ–°é–¢ä¿‚
 	RailSettings _prev;
-	bool _dirtyRequested;
+	bool _needsRebuild;
 
 #if UNITY_EDITOR
 	long _lastSplineSig;
@@ -77,21 +81,21 @@ public class RailBuilder : MonoBehaviour
 	public float GetRailTrackWidthHalf() { return _railTrackWidthHalf; }
 
 	//GetVector
-	public Vector3 GetLeftWorldAt(float t)
+	public Vector3 GetRailLeftPosWorld(float t)
 	{
 		Vector3 center = _splineContainer.EvaluatePosition(Mathf.Repeat(t, 1f));
 		Vector3 fwd = _splineContainer.EvaluateTangent(Mathf.Repeat(t, 1f));
 		fwd = fwd.normalized;
-		if (fwd.sqrMagnitude < 1e-8f) fwd = Vector3.forward;
+		if (fwd.sqrMagnitude < kEpsilon) fwd = Vector3.forward;
 		Vector3 right = Vector3.Cross(Vector3.up, fwd).normalized;
 		return center - right * _railTrackWidthHalf;
 	}
-	public Vector3 GetRightWorldAt(float t)
+	public Vector3 GetRailRightPosWorld(float t)
 	{
 		Vector3 center = _splineContainer.EvaluatePosition(Mathf.Repeat(t, 1f));
 		Vector3 fwd = _splineContainer.EvaluateTangent(Mathf.Repeat(t, 1f));
 		fwd = fwd.normalized;
-		if (fwd.sqrMagnitude < 1e-8f) fwd = Vector3.forward;
+		if (fwd.sqrMagnitude < kEpsilon) fwd = Vector3.forward;
 		Vector3 right = Vector3.Cross(Vector3.up, fwd).normalized;
 		return center + right * _railTrackWidthHalf;
 	}
@@ -107,7 +111,7 @@ public class RailBuilder : MonoBehaviour
 		MarkDirtyAndScheduleRebuild();
 
 #if UNITY_EDITOR
-		//ƒXƒvƒ‰ƒCƒ“•ÏX‚ğŠÄ‹
+		//ã‚¹ãƒ—ãƒ©ã‚¤ãƒ³å¤‰æ›´ã‚’ç›£è¦–
 		_lastSplineSig = ComputeSplineSignature(_spline);
 		EditorApplication.update += EditorSplineWatcher;
 #endif
@@ -117,7 +121,7 @@ public class RailBuilder : MonoBehaviour
 	void OnDisable()
 	{
 #if UNITY_EDITOR
-		//ŠÄ‹I—¹
+		//ç›£è¦–çµ‚äº†
 		EditorApplication.update -= EditorSplineWatcher;
 #endif
 	}
@@ -125,7 +129,7 @@ public class RailBuilder : MonoBehaviour
 	//OnValidate==================================================
 	void OnValidate()
 	{
-		//•ÏX‚ª‚ ‚Á‚½ê‡AXV
+		//å¤‰æ›´ãŒã‚ã£ãŸå ´åˆã€æ›´æ–°
 		RailSettings now = Capture();
 		if (!_prev.Equals(now))
 		{
@@ -134,7 +138,7 @@ public class RailBuilder : MonoBehaviour
 		}
 	}
 
-	//İ’èæ“¾
+	//è¨­å®šå–å¾—
 	RailSettings Capture()
 	{
 		return new RailSettings
@@ -150,27 +154,27 @@ public class RailBuilder : MonoBehaviour
 
 	void MarkDirtyAndScheduleRebuild()
 	{
-		_dirtyRequested = true;
+		_needsRebuild = true;
 #if UNITY_EDITOR
 		EditorApplication.delayCall += RebuildIfNeeded;
 #endif
 	}
 
-	//ƒƒbƒVƒ…XV
+	//ãƒ¡ãƒƒã‚·ãƒ¥æ›´æ–°
 	void RebuildIfNeeded()
 	{
-		if (!_dirtyRequested) { return; }
-		_dirtyRequested = false;
+		if (!_needsRebuild) { return; }
+		_needsRebuild = false;
 		if (!_splineContainer || _splineContainer.Spline == null) { return; }
 
-		//ƒTƒ“ƒvƒŠƒ“ƒO
+		//ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°
 		List<SamplePoint> samples = BuildSamples(_splineContainer.Spline);
 
-		//ƒIƒtƒZƒbƒg
+		//ã‚ªãƒ•ã‚»ãƒƒãƒˆ
 		SamplePoint[] left, right;
 		ComputeOffsetSamples(samples, _railTrackWidthHalf, out left, out right);
 
-		//ƒƒbƒVƒ…¶¬
+		//ãƒ¡ãƒƒã‚·ãƒ¥ç”Ÿæˆ
 		Mesh leftMesh = BuildRailPrismMesh(left, right, _railWidth * 0.5f, _railThickness, true);
 		Mesh rightMesh = BuildRailPrismMesh(right, left, _railWidth * 0.5f, _railThickness, false);
 
@@ -180,7 +184,7 @@ public class RailBuilder : MonoBehaviour
 
 	//Editor==================================================
 #if UNITY_EDITOR
-	//•ÏXƒtƒ‰ƒO
+	//å¤‰æ›´ãƒ•ãƒ©ã‚°
 	void EditorSplineWatcher()
 	{
 		if (!_splineContainer) { return; }
@@ -195,17 +199,17 @@ public class RailBuilder : MonoBehaviour
 		}
 	}
 
-	//SplineƒnƒbƒVƒ…’l‰»Ë‚‘¬‰»(•ÏXŒŸ’m—p)
-	//FNV-1aQl
+	//Splineãƒãƒƒã‚·ãƒ¥å€¤åŒ–â‡’é«˜é€ŸåŒ–(å¤‰æ›´æ¤œçŸ¥ç”¨)
+	//FNV-1aå‚è€ƒ
 	long ComputeSplineSignature(Spline spline)
 	{
 		if (spline == null) return 0;
 
-		//FNV-1a’è”
+		//FNV-1aå®šæ•°
 		const long FNV_OFFSET_BASIS = 1469598103934665603L;
 		const long FNV_PRIME = 1099511628211L;
 
-		//float¨64bit’l
+		//floatâ†’64bitå€¤
 		static long MixFloat(long h, float f)
 		{
 			h ^= (long)math.aslong(f);
@@ -215,9 +219,9 @@ public class RailBuilder : MonoBehaviour
 
 		unchecked
 		{
-			long hash = FNV_OFFSET_BASIS;//ƒnƒbƒVƒ…’l
+			long hash = FNV_OFFSET_BASIS;//ãƒãƒƒã‚·ãƒ¥å€¤
 
-			//ƒmƒbƒg”
+			//ãƒãƒƒãƒˆæ•°
 			int count = spline.Count;
 			hash ^= count;
 			hash *= FNV_PRIME;
@@ -226,12 +230,12 @@ public class RailBuilder : MonoBehaviour
 			{
 				var knot = spline[i];
 
-				//ˆÊ’u
+				//ä½ç½®
 				hash = MixFloat(hash, knot.Position.x);
 				hash = MixFloat(hash, knot.Position.y);
 				hash = MixFloat(hash, knot.Position.z);
 
-				//Úü
+				//æ¥ç·š
 				hash = MixFloat(hash, knot.TangentIn.x);
 				hash = MixFloat(hash, knot.TangentIn.y);
 				hash = MixFloat(hash, knot.TangentIn.z);
@@ -240,7 +244,7 @@ public class RailBuilder : MonoBehaviour
 				hash = MixFloat(hash, knot.TangentOut.y);
 				hash = MixFloat(hash, knot.TangentOut.z);
 
-				//‰ñ“]
+				//å›è»¢
 				var quat = knot.Rotation.value;
 				hash = MixFloat(hash, quat.x);
 				hash = MixFloat(hash, quat.y);
@@ -248,7 +252,7 @@ public class RailBuilder : MonoBehaviour
 				hash = MixFloat(hash, quat.w);
 			}
 
-			//ƒ‹[ƒv
+			//ãƒ«ãƒ¼ãƒ—
 			hash = MixFloat(hash, spline.Closed ? 1f : 0f);
 
 			return hash;
@@ -259,7 +263,7 @@ public class RailBuilder : MonoBehaviour
 
 	//Rail==================================================
 
-	//ƒTƒ“ƒvƒŠƒ“ƒO
+	//ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°
 	List<SamplePoint> BuildSamples(Spline spline)
 	{
 		List<SamplePoint> list = new List<SamplePoint>();
@@ -293,18 +297,18 @@ public class RailBuilder : MonoBehaviour
 			prevFwd = tan;
 		}
 
-		//ƒ‹[ƒvˆ—
+		//ãƒ«ãƒ¼ãƒ—å‡¦ç†
 		if (spline.Closed && 1 < list.Count)
 		{
 			list.Add(list[0]);
 			SamplePoint sp = list[^1];
-			sp.up = list[0].up; list[^1] = sp;//‚Ë‚¶‚ê‡‚í‚¹
+			sp.up = list[0].up; list[^1] = sp;//ã­ã˜ã‚Œåˆã‚ã›
 		}
 		return list;
 	}
 
 
-	//ƒIƒtƒZƒbƒg
+	//ã‚ªãƒ•ã‚»ãƒƒãƒˆ
 	void ComputeOffsetSamples(List<SamplePoint> center, float halfGauge,
 							  out SamplePoint[] left, out SamplePoint[] right)
 	{
@@ -332,14 +336,14 @@ public class RailBuilder : MonoBehaviour
 	}
 
 
-	//ƒƒbƒVƒ…¶¬
+	//ãƒ¡ãƒƒã‚·ãƒ¥ç”Ÿæˆ
 	Mesh BuildRailPrismMesh(SamplePoint[] own, SamplePoint[] opp, float halfWidth, float thick, bool upMode)
 	{
 		int n = own.Length;
 		Vector3[] verts = new Vector3[n * 8];
 		Vector2[] uvs = new Vector2[n * 8];
 
-		//ãŠO0, ã“à1, ‰ºŠO2, ‰ºŠO3
+		//ä¸Šå¤–0, ä¸Šå†…1, ä¸‹å¤–2, ä¸‹å¤–3
 		int TopOut(int i) => i * 8 + 0;
 		int TopIn(int i) => i * 8 + 1;
 		int BotOut(int i) => i * 8 + 2;
@@ -388,25 +392,25 @@ public class RailBuilder : MonoBehaviour
 		int[] tris = new int[trisPerBand * 4];
 		int w = 0;
 
-		//ã–Ê
+		//ä¸Šé¢
 		for (int i = 0; i < n - 1; i++)
 		{
 			tris[w++] = TopIn(i); tris[w++] = TopOut(i + 1); tris[w++] = TopOut(i);
 			tris[w++] = TopIn(i); tris[w++] = TopIn(i + 1); tris[w++] = TopOut(i + 1);
 		}
-		//‰º–Ê
+		//ä¸‹é¢
 		for (int i = 0; i < n - 1; i++)
 		{
 			tris[w++] = BotIn(i); tris[w++] = BotOut(i); tris[w++] = BotOut(i + 1);
 			tris[w++] = BotIn(i); tris[w++] = BotOut(i + 1); tris[w++] = BotIn(i + 1);
 		}
-		//ŠO‘¤
+		//å¤–å´
 		for (int i = 0; i < n - 1; i++)
 		{
 			tris[w++] = TopOut(i); tris[w++] = BotOut(i + 1); tris[w++] = BotOut(i);
 			tris[w++] = TopOut(i); tris[w++] = TopOut(i + 1); tris[w++] = BotOut(i + 1);
 		}
-		//“à‘¤
+		//å†…å´
 		for (int i = 0; i < n - 1; i++)
 		{
 			tris[w++] = TopIn(i); tris[w++] = BotIn(i); tris[w++] = BotIn(i + 1);
@@ -423,7 +427,7 @@ public class RailBuilder : MonoBehaviour
 	}
 
 
-	//RailMesh‚Ìİ’è
+	//RailMeshã®è¨­å®š
 	void ApplyToChild(string name, Mesh mesh)
 	{
 		Transform t = transform.Find(name);

@@ -1,8 +1,9 @@
-using UnityEngine;
+Ôªøusing UnityEngine;
+using IVP;//InspactorVariableProperties
 
 public class PropertyDrawerSample : MonoBehaviour
 {
-	//TestópEnum
+	//TestÁî®Enum
 	[ProjectEnum]
 	public enum ENUM
 	{
@@ -13,7 +14,7 @@ public class PropertyDrawerSample : MonoBehaviour
 		ENUM_E,
 	}
 
-	//Arrayån
+	//ArrayÁ≥ª
 	[Header("Array")]
 	[SerializeField, EnumArray(typeof(ENUM))] int[] _enumArray = new int[8];
 	[SerializeField] EnumTypeRef _enumTypeRef;
@@ -21,7 +22,7 @@ public class PropertyDrawerSample : MonoBehaviour
 	[SerializeField, LayerArray] int[] _layerArray = new int[8];
 	[SerializeField, TagArray] int[] _tagArray = new int[8];
 
-	//Selectån(stringÇÃÇ›)
+	//SelectÁ≥ª(string„ÅÆ„Åø)
 	[Header("Select")]
 	[SerializeField, LayerSelect] string _layerSelect;
 	[SerializeField, TagSelect] string _tagSelect;

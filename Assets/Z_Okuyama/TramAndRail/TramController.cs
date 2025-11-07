@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Splines;
 
 public class TramController : MonoBehaviour
@@ -21,25 +21,29 @@ public class TramController : MonoBehaviour
 
 	[Header("StartPosition")]
 	[SerializeField, Range(0f, 1f)] float _tStart = 0f;
-	[SerializeField] TStartMode _tStartMode = TStartMode.Front;
 
 	[Header("Move")]
-	//���x
-	const float TramSpeedMin = 0f;
-	const float TramSpeedMax = 20f;
-	//[SerializeField, Range(TramSpeedMin, TramSpeedMax)] float _tramSpeedDefault = 1f;
-	[SerializeField, Range(TramSpeedMin, TramSpeedMax)] float _tramSpeed = 1f;
-	//[SerializeField] bool _tramSpeedDebug = false;
+	//速度
+	const float kTramSpeedMax = 20f;
+	[SerializeField, Range(-kTramSpeedMax, kTramSpeedMax)] float _tramSpeed = 1f;
 
-	//�J�[�u
-	//[SerializeField, Min(0f)]
-	float _tauRot = 0.05f;//���Ԓ萔
+	[Header("Curve")]
+
+	[SerializeField, Range(0.1f, 1f)] float _curveSpeedNorm = 0.5f;
+	[SerializeField, Range(0.001f, 1f)] float _curveSpeedSmooth = 0.05f;
+
+	[SerializeField, Range(0.001f, 10f)] float _curveLength = 1.0f;
+	[SerializeField, Range(1, 10)] int _samplesPerSide = 4;//片側サンプル数
+	[SerializeField, Range(0.1f, 20)] float _maxAnglePerStep = 12f;//ステップの上限
+	float _movePrev;
+
+	float _rotSmoothTimeConst = 0.05f;//時間定数
 	Vector3 _fwdSmoothed;
 	Vector3 _upSmoothed;
 	bool _rotInit;
 
-	float _tFront;
-	float _tBack;
+	float _tFrontNorm;
+	float _tFBackNorm;
 	float _tramLength;
 
 
@@ -50,49 +54,19 @@ public class TramController : MonoBehaviour
 		_spline = _splineContainer.Spline;
 
 		//SetVariable
-		//_tramSpeed = _tramSpeedDefault;
 		_tramLength = SplineUtility.CalculateLength(_spline, transform.localToWorldMatrix);
 		_rotInit = false;
 
-		//t�̑O�ʂƌ�ʈʒu���킹
+		//tの前面と後面位置合わせ
 		float tSub = _tramSize.z / _tramLength;
-		switch (_tStartMode)
-		{
-			case TStartMode.Front:
-				_tFront = _tStart;
-				_tBack = _tFront - tSub;
-				if (_tBack < 0f)
-				{
-					_tBack += 1f;
-				}
-
-				break;
-
-			case TStartMode.Back:
-				_tBack = _tStart;
-				_tFront = _tBack + tSub;
-				if (1f < _tFront)
-				{
-					_tFront -= 1f;
-				}
-
-				break;
-
-			default:
-				break;
-		}
+		_tFrontNorm = Mathf.Repeat(_tStart + tSub * 0.5f, 1f);
+		_tFBackNorm = Mathf.Repeat(_tStart - tSub * 0.5f, 1f);
 	}
 
 
 	//Update==================================================
-	private void Update()
+	private void FixedUpdate()
 	{
-		/*
-		if (_tramSpeedDebug && _tramSpeed != _tramSpeedDefault)
-		{
-			_tramSpeed = _tramSpeedDefault;
-		}
-		*/
 		AddT();
 		SetTramPosition();
 	}
@@ -100,22 +74,39 @@ public class TramController : MonoBehaviour
 
 	void AddT()
 	{
-		float move = Time.deltaTime * _tramSpeed * 0.1f;
+		const float kSpeedScale = 0.1f;
 
-		_tFront += move;
-		_tBack += move;
+		float t = GetForwardT(_tFrontNorm, _tFBackNorm, _tramSpeed);
+		float curve = ((1 - GetCurveSharpness(t, _curveLength, _samplesPerSide))
+			+ (1 - GetCurveSharpness(
+				(_tramSpeed > 0) ? _tFrontNorm : _tFBackNorm,
+				_tramLength / (_samplesPerSide * 0.5f),
+				_samplesPerSide)))
+			* 0.5f;
 
-		_tFront %= 1f;
-		_tBack %= 1f;
+
+		//移動速度
+		float speed = curve * _tramSpeed
+			+ (1 - curve) * _tramSpeed * _curveSpeedNorm;
+
+		//移動距離
+		float move = Time.deltaTime * speed * kSpeedScale;
+		float smoothFactor = 1f - Mathf.Exp(-_curveSpeedSmooth * Time.deltaTime * 60f);
+		move = Mathf.Lerp(_movePrev, move, smoothFactor);
+		_movePrev = move;
+
+		//移動
+		_tFrontNorm = Mathf.Repeat(_tFrontNorm + move, 1f);
+		_tFBackNorm = Mathf.Repeat(_tFBackNorm + move, 1f);
 	}
 
 	void SetTramPosition()
 	{
 		Transform transform = _tramObject.transform;
 
-		//�ʒu
-		Vector3 frontPos = _splineContainer.EvaluatePosition(_tFront);
-		Vector3 backPos = _splineContainer.EvaluatePosition(_tBack);
+		//位置
+		Vector3 frontPos = _splineContainer.EvaluatePosition(_tFrontNorm);
+		Vector3 backPos = _splineContainer.EvaluatePosition(_tFBackNorm);
 		Vector3 pos = (frontPos + backPos) * 0.5f;
 		if (_railBuilder)
 		{
@@ -124,16 +115,16 @@ public class TramController : MonoBehaviour
 
 		transform.position = pos;
 
-		//�ڐ�/��]
-		float tCenter = MidTNormalized(_tFront, _tBack);
+		//接線/回転
+		float tCenter = MidTNormalized(_tFrontNorm, _tFBackNorm);
 		Vector3 forwardRaw = (frontPos - backPos).normalized;
 
-		//Up�v�Z
+		//Up計算
 		Vector3 upRaw;
 		if (_railBuilder)
 		{
-			Vector3 left = _railBuilder.GetLeftWorldAt(tCenter);
-			Vector3 right = _railBuilder.GetRightWorldAt(tCenter);
+			Vector3 left = _railBuilder.GetRailLeftPosWorld(tCenter);
+			Vector3 right = _railBuilder.GetRailRightPosWorld(tCenter);
 			Vector3 rightVec = (right - left).normalized;
 			upRaw = Vector3.Cross(forwardRaw, rightVec).normalized;
 		}
@@ -143,7 +134,7 @@ public class TramController : MonoBehaviour
 			upRaw = upRaw.normalized;
 		}
 
-		float s = 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(1e-4f, _tauRot));
+		float s = 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(1e-4f, _rotSmoothTimeConst));
 
 		if (!_rotInit)
 		{
@@ -153,12 +144,12 @@ public class TramController : MonoBehaviour
 		}
 		else
 		{
-			//�X���[�W���O�ˈ�U�Ȃ�
+			//スムージング⇒一旦なし
 			//_fwdSmoothed = Vector3.Slerp(_fwdSmoothed, forwardRaw, s).normalized;
 			_fwdSmoothed = forwardRaw;
 			_upSmoothed = Vector3.Slerp(_upSmoothed, upRaw, s).normalized;
 
-			//������
+			//直交化
 			var right = Vector3.Cross(_upSmoothed, _fwdSmoothed).normalized;
 			_upSmoothed = Vector3.Cross(_fwdSmoothed, right).normalized;
 		}
@@ -167,24 +158,10 @@ public class TramController : MonoBehaviour
 	}
 
 
-	//�v�Z�n==================================================
-	//t����Forward�擾
-	/*
-	Vector3 GetForward(float t, float dtT)
-	{
-		float t0 = Mathf.Repeat(t - dtT, 1f);
-		float t1 = Mathf.Repeat(t + dtT, 1f);
+	//計算系==================================================
+	//tからForward取得
 
-		Vector3 p0 = _splineContainer.EvaluatePosition(t0);
-		Vector3 p1 = _splineContainer.EvaluatePosition(t1);
-
-		Vector3 fwd = (p1 - p0);
-		if (fwd.sqrMagnitude < 1e-8f) return _fwdSmoothed != Vector3.zero ? _fwdSmoothed : transform.forward;
-		return fwd.normalized;
-	}
-	*/
-
-	//�p�x�ɒ����čŒZ����
+	//角度に直して最短差分
 	float MidTNormalized(float tA, float tB)
 	{
 		float a = tA * 360f;
@@ -192,4 +169,66 @@ public class TramController : MonoBehaviour
 		float mid = b + Mathf.DeltaAngle(b, a) * 0.5f;
 		return Mathf.Repeat(mid / 360f, 1f);
 	}
+
+	float GetForwardT(float tFrontNorm, float tBackNorm, float speed)
+	{
+		bool front = (speed > 0f);
+		float t = (front) ? tFrontNorm : tBackNorm;
+		float sub = -Mathf.Abs(tFrontNorm - tBackNorm) + _curveLength * _samplesPerSide * 0.01f;
+
+		t += (front) ? sub : -sub;
+		t = Mathf.Repeat(t, 1f);
+
+		return t;
+	}
+
+	//カーブ度合い
+	float GetCurveSharpness(float t, float curveLength, int samples)
+	{
+		const float minDt = 0.0005f;
+		const float maxDt = 0.06f;
+		const float eps = 1e-6f;
+
+		// 距離→t
+		float length = UnityEngine.Splines.SplineUtility.CalculateLength(_spline, transform.localToWorldMatrix);
+		if (length < eps || samples <= 0) return 0f;
+		float dt = Mathf.Clamp(curveLength / length, minDt, maxDt);
+
+		//端から端に一筆書きサンプル
+		int steps = samples * 2;
+		float tStart = Mathf.Repeat(t - samples * dt, 1f);
+
+		//接線の取得関数
+		Vector3 GetTangent(float tt)
+		{
+			var tan = (Vector3)UnityEngine.Splines.SplineUtility.EvaluateTangent(_spline, tt);  // ← 行列なしの3引数版
+			tan.y = 0f;
+			return tan.sqrMagnitude > eps ? tan.normalized : Vector3.forward;
+		}
+
+
+		// 度の積算
+		float totalDeg = 0f;
+		Vector3 prevTan = GetTangent(tStart);
+
+		for (int i = 1; i <= steps; i++)
+		{
+			float ti = Mathf.Repeat(tStart + i * dt, 1f);
+			Vector3 tan = GetTangent(ti);
+
+			float cos = Mathf.Clamp(Vector3.Dot(prevTan, tan), -1f, 1f);
+			float ang = Mathf.Acos(cos) * Mathf.Rad2Deg; // 0..180
+			totalDeg += ang;
+
+			prevTan = tan;
+		}
+
+		//平均
+		float avgDeg = totalDeg / steps;
+		float sharp = Mathf.Clamp01(avgDeg / _maxAnglePerStep);
+
+		return sharp;
+	}
+
+
 }

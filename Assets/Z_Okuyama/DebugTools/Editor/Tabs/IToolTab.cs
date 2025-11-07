@@ -1,16 +1,16 @@
-using UnityEditor;
+ï»¿using UnityEditor;
 using UnityEngine;
 
 namespace DebugTools.EditorUI
 {
 	public interface IToolTab
 	{
-		string Id { get; }//ƒ^ƒuID
-		string Title { get; }//ƒ‰ƒxƒ‹
-		Texture Icon { get; }//ƒAƒCƒRƒ“
+		string Id { get; }//ã‚¿ãƒ–ID
+		string Title { get; }//ãƒ©ãƒ™ãƒ«
+		Texture Icon { get; }//ã‚¢ã‚¤ã‚³ãƒ³
 
-		void OnEnable(EditorWindow host);//ƒzƒXƒg‚Éæ‚Á‚½ƒ^ƒCƒ~ƒ“ƒO
-		void OnGUI();//•`‰æ
-		void OnDisable();//w“Ç‰ğœ‚È‚Ç
+		void OnEnable(EditorWindow host);//ãƒ›ã‚¹ãƒˆã«ä¹—ã£ãŸã‚¿ã‚¤ãƒŸãƒ³ã‚°
+		void OnGUI();//æç”»
+		void OnDisable();//è³¼èª­è§£é™¤ãªã©
 	}
 }

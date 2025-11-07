@@ -1,10 +1,10 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using UnityEditor;
 
 namespace DebugTools.EditorUI
 {
-	//WatchList‰i‘±—p
+	//WatchListæ°¸ç¶šç”¨
 	[FilePath("UserSettings/DebugTools_WatchStore.asset", FilePathAttribute.Location.ProjectFolder)]
 	public sealed class WatchStore : ScriptableSingleton<WatchStore>
 	{
@@ -15,6 +15,7 @@ namespace DebugTools.EditorUI
 			public string ownerGlobalId;
 			public string componentTypeName;
 			public string memberName;
+			public string ownerHierarchyPath;
 		}
 
 		//Variable==================================================
@@ -37,6 +38,7 @@ namespace DebugTools.EditorUI
 					ownerGlobalId = r.ownerGlobalId,
 					componentTypeName = r.componentTypeName,
 					memberName = r.memberName,
+					ownerHierarchyPath = r.ownerHierarchyPath,
 				});
 				if (items.Count >= MaxItems) break;
 			}

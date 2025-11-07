@@ -1,11 +1,11 @@
-using System;
+ï»¿using System;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
 namespace DebugTools.EditorUI
 {
-	//ŠÄ‹‘ÎÛQÆ
+	//ç›£è¦–å¯¾è±¡å‚ç…§
 	[Serializable]
 	public sealed class WatchedMemberRef
 	{
@@ -15,7 +15,7 @@ namespace DebugTools.EditorUI
 		[SerializeField] public string componentTypeName;//AssemblyQualifiedName
 		[SerializeField] public string memberName;
 
-		//À‘Ì
+		//å®Ÿä½“
 		[NonSerialized] public GameObject _ownerGo;
 		[NonSerialized] public Component _component;
 		[NonSerialized] public Func<object> _getter;
@@ -23,56 +23,49 @@ namespace DebugTools.EditorUI
 
 		//Function==================================================
 
-		//æ“¾—p
+		//å–å¾—ç”¨
 		public bool IsResolved => _getter != null;
+		[SerializeField] public string ownerHierarchyPath; // Root/Child/... ã‚’ä¿æŒ
 
 		public bool TryResolve()
 		{
-			_getter = null;
-			_ownerGo = null;
-			_component = null;
+			_getter = null; _ownerGo = null; _component = null;
 
-			if (string.IsNullOrEmpty(ownerGlobalId) ||
-				string.IsNullOrEmpty(componentTypeName) ||
-				string.IsNullOrEmpty(memberName))
-			{
+			if (string.IsNullOrEmpty(componentTypeName) || string.IsNullOrEmpty(memberName))
 				return false;
+
+			//Idã‹ã‚‰Object
+			if (!string.IsNullOrEmpty(ownerGlobalId) &&
+				GlobalObjectId.TryParse(ownerGlobalId, out var gid))
+			{
+				var obj = GlobalObjectId.GlobalObjectIdentifierToObjectSlow(gid);
+				_ownerGo = obj as GameObject;
 			}
 
-			//GlobalIdËObject
-			if (!GlobalObjectId.TryParse(ownerGlobalId, out var gid)) { return false; }
-			var obj = GlobalObjectId.GlobalObjectIdentifierToObjectSlow(gid);
-			_ownerGo = obj as GameObject;
-			if (_ownerGo == null) { return false; }
+			//ãƒ•ã‚©ãƒ¼ãƒ«ãƒãƒƒã‚¯
+			if (_ownerGo == null && !string.IsNullOrEmpty(ownerHierarchyPath))
+			{
+				_ownerGo = GameObject.Find(ownerHierarchyPath);
+			}
+			if (_ownerGo == null) return false;
 
-			//Œ^‰ğŒˆ
+			//å‹èª¿æ•´
 			var type = Type.GetType(componentTypeName, throwOnError: false);
-			if (type == null) { return false; }
+			if (type == null) return false;
 
 			_component = _ownerGo.GetComponent(type);
-			if (_component == null) { return false; }
+			if (_component == null) return false;
 
-			const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+			const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 			var f = type.GetField(memberName, flags);
-			if (f != null)
-			{
-				_getter = () => f.GetValue(_component);
-				return true;
-			}
+			if (f != null) { _getter = () => f.GetValue(_component); return true; }
 
 			var p = type.GetProperty(memberName, flags);
 			if (p?.GetGetMethod(true) is MethodInfo get && get.GetParameters().Length == 0)
-			{
-				_getter = () => get.Invoke(_component, null);
-				return true;
-			}
+			{ _getter = () => get.Invoke(_component, null); return true; }
 
 			return false;
 		}
 
-		public string OwnerLabel =>
-			_ownerGo != null
-				? $"{_ownerGo.name}.{(_component != null ? _component.GetType().Name : "?")}"
-				: "(missing)";
 	}
 }

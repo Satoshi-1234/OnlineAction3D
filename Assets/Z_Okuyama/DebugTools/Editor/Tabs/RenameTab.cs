@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+Ôªøusing System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
@@ -13,6 +13,30 @@ namespace DebugTools.EditorUI
 		public override string Id => "rename";
 		public override string Title => "Rename";
 
+		static class Ui
+		{
+			public static class Width
+			{
+				public const float SceneToggle = 130f;
+				public const float AssetToggle = 100f;
+				public const float ActionButton = 120f;
+				public const float PrevNameMin = 100f;
+				public const float PrevNameMax = 250f;
+				public const float NewNameMin = 150f;
+				public const float NewNameMax = 400f;
+			}
+			public static class Height
+			{
+				public const float Row = 24f;
+				public const float Space = 2f;
+			}
+
+			public static class Text
+			{
+				public const string NoSelect = "RenameÂØæË±°„ÇíÈÅ∏Êäû„Åó„Å¶„Åè„Å†„Åï„ÅÑ";
+			}
+		}
+
 		string _format = "{name}_{n:D2}";
 		int _startNumber = 1;
 		bool _applyToAssets = true;
@@ -21,7 +45,7 @@ namespace DebugTools.EditorUI
 
 		//Function==================================================
 
-		//ï`âÊ
+		//ÊèèÁîª
 		public override void OnGUI()
 		{
 			EditorGUILayout.LabelField("Batch Rename", EditorStyles.boldLabel);
@@ -32,8 +56,8 @@ namespace DebugTools.EditorUI
 				_startNumber = EditorGUILayout.IntField(new GUIContent("Start Number"), Mathf.Max(0, _startNumber));
 				using (new EditorGUILayout.HorizontalScope())
 				{
-					_applyToObjects = EditorGUILayout.ToggleLeft("Scene Objects", _applyToObjects, GUILayout.Width(130));
-					_applyToAssets = EditorGUILayout.ToggleLeft("Assets", _applyToAssets, GUILayout.Width(100));
+					_applyToObjects = EditorGUILayout.ToggleLeft("Scene Objects", _applyToObjects, GUILayout.Width(Ui.Width.SceneToggle));
+					_applyToAssets = EditorGUILayout.ToggleLeft("Assets", _applyToAssets, GUILayout.Width(Ui.Width.AssetToggle));
 				}
 			}
 
@@ -42,7 +66,7 @@ namespace DebugTools.EditorUI
 			var selection = Selection.objects;
 			if (selection.Length == 0)
 			{
-				EditorGUILayout.HelpBox("RenameëŒè€ÇëIëÇµÇƒÇ≠ÇæÇ≥Ç¢", MessageType.None);
+				EditorGUILayout.HelpBox(Ui.Text.NoSelect, MessageType.None);
 				return;
 			}
 
@@ -50,22 +74,26 @@ namespace DebugTools.EditorUI
 			var list = selection.ToList();
 
 			int n = _startNumber;
-			foreach (var o in list)
-			{
-				string preview = BuildName(o, n);
-				using (new EditorGUILayout.HorizontalScope())
-				{
-					EditorGUILayout.ObjectField(o, typeof(Object), true);
-					EditorGUILayout.LabelField("Å® " + preview);
-				}
-				n++;
-			}
 
-			EditorGUILayout.Space();
+			using (new EditorGUILayout.VerticalScope("box"))
+			{
+				foreach (var o in list)
+				{
+					string preview = BuildName(o, n);
+					using (new EditorGUILayout.HorizontalScope())
+					{
+						EditorGUILayout.ObjectField(o, typeof(Object), true, GUILayout.MinWidth(Ui.Width.PrevNameMin), GUILayout.MaxWidth(Ui.Width.PrevNameMax));
+						EditorGUILayout.LabelField("‚Üí " + preview, GUILayout.MinWidth(Ui.Width.NewNameMin), GUILayout.MaxWidth(Ui.Width.NewNameMax));
+					}
+					n++;
+				}
+
+				GUILayout.Space(Ui.Height.Space);
+			}
 			using (new EditorGUILayout.HorizontalScope())
 			{
 				GUILayout.FlexibleSpace();
-				if (GUILayout.Button("Rename", GUILayout.Width(120), GUILayout.Height(24)))
+				if (GUILayout.Button("Rename", GUILayout.Width(Ui.Width.ActionButton), GUILayout.Height(Ui.Height.Row)))
 				{
 					ApplyRename(list);
 				}
@@ -115,7 +143,12 @@ namespace DebugTools.EditorUI
 					if (!string.IsNullOrEmpty(path))
 					{
 						string newName = BuildName(o, n);
-						AssetDatabase.RenameAsset(path, newName);
+						//Á©∫„Åß„Å™„ÅÑÂ†¥Âêà„Ç®„É©„Éº
+						var err = AssetDatabase.RenameAsset(path, newName);
+						if (!string.IsNullOrEmpty(err))
+						{
+							Debug.LogError($"RenameAsset failed: {err} (path: {path}, to: {newName})");
+						}
 					}
 				}
 				n++;

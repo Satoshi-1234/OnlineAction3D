@@ -5,7 +5,7 @@ using UnityEngine;
 namespace DebugTools.EditorUI
 {
 	///Editor再起動後も設定を保持
-	[FilePath("UserSettings/DebugToolState.asset", FilePathAttribute.Location.ProjectFolder)]
+	[FilePath("UserSettings/SelectionHistoryState.asset", FilePathAttribute.Location.ProjectFolder)]
 	public class SelectionHistoryState : ScriptableSingleton<SelectionHistoryState>
 	{
 		[SerializeField] int _activeTabIndex = 0;
@@ -16,6 +16,18 @@ namespace DebugTools.EditorUI
 
 		[SerializeField] List<string> _assetHistory = new();
 		[SerializeField] List<string> _assetBookmarks = new();
+
+
+		public void ClearObjectHistory()
+		{
+			_objectHistory.Clear();
+			Save(true);
+		}
+		public void ClearAssetHistory()
+		{
+			_assetHistory.Clear();
+			Save(true);
+		}
 
 		public int ActiveTabIndex { get => _activeTabIndex; set { _activeTabIndex = value; Save(true); } }
 		public int HistoryCapacity => MaxItems;
@@ -72,16 +84,19 @@ namespace DebugTools.EditorUI
 
 		public bool IsBookmarked(GameObject go)
 		{
-			if (go == null) return false;
+			if (go == null) { return false; }
 			var gid = GlobalObjectId.GetGlobalObjectIdSlow(go).ToString();
 			return _objectBookmarks.Contains(gid);
 		}
 
 		public bool IsBookmarked(Object asset)
 		{
-			if (asset == null) return false;
+			if (asset == null) { return false; }
+
 			var path = AssetDatabase.GetAssetPath(asset);
 			var guid = AssetDatabase.AssetPathToGUID(path);
+			if (string.IsNullOrEmpty(guid)) { return false; }
+
 			return _assetBookmarks.Contains(guid);
 		}
 	}

@@ -1,0 +1,13 @@
+﻿using UnityEngine;
+
+namespace InspectorVariableProperties.Attributes
+{
+	public class EnumArrayFromAttribute : PropertyAttribute
+	{
+		public readonly string enumTypeRefFieldName;
+		public EnumArrayFromAttribute(string enumTypeRefFieldName)
+		{
+			this.enumTypeRefFieldName = enumTypeRefFieldName;
+		}
+	}
+}

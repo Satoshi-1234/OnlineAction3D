@@ -14,6 +14,37 @@ namespace DebugTools.EditorUI
 		public override string Id => "watch";
 		public override string Title => "Watch";
 
+		static class Ui
+		{
+			public static class Width
+			{
+				public const float TopButton = 80f;
+				public const float MemberLabelMin = 100f;
+				public const float MemberLabelMax = 250f;
+				public const float WatchValueFieldMin = 150f;
+				public const float ButtonMini = 29f;
+				public const float ButtonAction = 58f;
+			}
+			public static class Height
+			{
+				public const float WatchListMax = 200f;
+				public const float Space = 2f;
+			}
+			public static class Text
+			{
+				public const string Null = "<null>";
+				public const string Error = "<err>";
+				public const string Missing = "(missing)";
+				public const string Nodata = "No data";
+
+				public const string NoWatch = "何もWatchしていません";
+				public const string NoSelect = "何も選択されていません";
+				public const string NoDebugVariable = "[DebugVariable]がありません";
+				public const string UpdateMark = "↻";
+				public const string DeleteMark = "✕";
+			}
+		}
+
 		//表示用
 		Vector2 _scrollWatch;
 		Vector2 _scrollList;
@@ -65,13 +96,13 @@ namespace DebugTools.EditorUI
 
 			using (new EditorGUILayout.HorizontalScope())
 			{
-				if (GUILayout.Button("Refresh", GUILayout.MinWidth(80)))
+				if (GUILayout.Button("Refresh", GUILayout.MinWidth(Ui.Width.TopButton)))
 				{
 					RefreshAll();
 				}
 				using (new EditorGUI.DisabledScope(_watch.Count == 0))
 				{
-					if (GUILayout.Button("Reset", GUILayout.MinWidth(80)))
+					if (GUILayout.Button("Reset", GUILayout.MinWidth(Ui.Width.TopButton)))
 					{
 						ClearWatch();
 					}
@@ -79,7 +110,7 @@ namespace DebugTools.EditorUI
 			}
 
 			DrawWatchList();
-			HLine(1);
+			HLine();
 			DrawSelectableList();
 		}
 
@@ -92,20 +123,20 @@ namespace DebugTools.EditorUI
 
 				if (_watch.Count == 0)
 				{
-					EditorGUILayout.HelpBox("何もWatchしていません", MessageType.None);
+					EditorGUILayout.HelpBox(Ui.Text.NoWatch, MessageType.None);
 					return;
 				}
 
-				using var sv = new EditorGUILayout.ScrollViewScope(_scrollWatch, GUILayout.MaxHeight(200));
+				using var sv = new EditorGUILayout.ScrollViewScope(_scrollWatch, GUILayout.MaxHeight(Ui.Height.WatchListMax));
 				_scrollWatch = sv.scrollPosition;
 
 				//グループ化(描画のみ)
-				foreach (var byGo in _watch.GroupBy(w => w._ownerGo ? w._ownerGo.name : "(missing)"))
+				foreach (var byGo in _watch.GroupBy(w => w._ownerGo ? w._ownerGo.name : Ui.Text.Missing))
 				{
 					EditorGUILayout.LabelField(byGo.Key, EditorStyles.label);
 					using (new EditorGUI.IndentLevelScope())
 					{
-						foreach (var byComp in byGo.GroupBy(w => w._component != null ? w._component.GetType().Name : "?"))
+						foreach (var byComp in byGo.GroupBy(w => w._component != null ? w._component.GetType().Name : Ui.Text.Nodata))
 						{
 							EditorGUILayout.LabelField(byComp.Key, EditorStyles.miniBoldLabel);
 							using (new EditorGUI.IndentLevelScope())
@@ -115,25 +146,25 @@ namespace DebugTools.EditorUI
 									using (new EditorGUILayout.HorizontalScope())
 									{
 										//変数名
-										EditorGUILayout.LabelField(r.memberName, GUILayout.MinWidth(50), GUILayout.MaxWidth(250));
+										EditorGUILayout.LabelField(r.memberName, GUILayout.MinWidth(Ui.Width.MemberLabelMin), GUILayout.MaxWidth(Ui.Width.MemberLabelMax));
 
 										//値
-										string val = r.IsResolved ? SafeGetValue(r._getter) : "<null>";
-										EditorGUILayout.LabelField(val, EditorStyles.textField, GUILayout.MinWidth(150));
+										string val = r.IsResolved ? SafeGetValue(r._getter) : Ui.Text.Null;
+										EditorGUILayout.LabelField(val, EditorStyles.textField, GUILayout.MinWidth(Ui.Width.WatchValueFieldMin));
 
 										//最新化
 										using (new EditorGUI.DisabledScope(!r.IsResolved))
 										{
-											if (GUILayout.Button(new GUIContent("↻", "Make most recent"),
-												EditorStyles.miniButton, GUILayout.Width(25)))
+											if (GUILayout.Button(new GUIContent(Ui.Text.UpdateMark),
+												EditorStyles.miniButton, GUILayout.Width(Ui.Width.ButtonMini)))
 											{
 												MoveToHead(r);
 											}
 										}
 
 										//解除
-										if (GUILayout.Button(new GUIContent("✕", "Remove"),
-											EditorStyles.miniButton, GUILayout.Width(25)))
+										if (GUILayout.Button(new GUIContent(Ui.Text.DeleteMark),
+											EditorStyles.miniButton, GUILayout.Width(Ui.Width.ButtonMini)))
 										{
 											RemoveWatch(r);
 											break;
@@ -154,12 +185,12 @@ namespace DebugTools.EditorUI
 				var v = getter?.Invoke();
 				return v switch
 				{
-					null => "<null>",
-					UnityEngine.Object uo when uo == null => "<null>",
+					null => Ui.Text.Null,
+					UnityEngine.Object uo when uo == null => Ui.Text.Null,
 					_ => v.ToString()
 				};
 			}
-			catch { return "<err>"; }
+			catch { return Ui.Text.Error; }
 		}
 
 		void MoveToHead(WatchedMemberRef r)
@@ -183,7 +214,7 @@ namespace DebugTools.EditorUI
 				GameObject go = Selection.activeGameObject;
 				if (go == null)
 				{
-					EditorGUILayout.HelpBox("何も選択されていません", MessageType.None);
+					EditorGUILayout.HelpBox(Ui.Text.NoSelect, MessageType.None);
 					return;
 				}
 
@@ -197,49 +228,60 @@ namespace DebugTools.EditorUI
 				{
 					EditorGUILayout.HelpBox("[DebugVariable]がありません", MessageType.None);
 					return;
-				}
-
-				foreach (var e in entries)
+				}// Object → Component → Variables の3段階で描画
+				foreach (var byGo in entries.GroupBy(e => e.owner))
 				{
-					//ObjectName.ComponentName
-					EditorGUILayout.LabelField($"{e.owner.name}.{e.component.GetType().Name}", EditorStyles.miniBoldLabel);
-
+					// ObjectName
+					EditorGUILayout.LabelField(byGo.Key.name, EditorStyles.label);
 					using (new EditorGUI.IndentLevelScope())
 					{
-						foreach (var (memberName, getter) in e.members)
+						foreach (var byComp in byGo.GroupBy(e => e.component.GetType().Name))
 						{
-							using (new EditorGUILayout.HorizontalScope())
+							// ComponentName
+							EditorGUILayout.LabelField(byComp.Key, EditorStyles.miniBoldLabel);
+							using (new EditorGUI.IndentLevelScope())
 							{
-								EditorGUILayout.LabelField(memberName, GUILayout.MinWidth(50), GUILayout.MaxWidth(250));
-
-								//今の値
-								var preview = SafeGetValue(getter);
-								EditorGUILayout.LabelField(preview, EditorStyles.textField, GUILayout.MinWidth(100));
-
-								//Watch/Remove
-								var tmpRef = MakeRef(e.owner, e.component, memberName);
-								var key = MakeKey(tmpRef);
-								var isWatched = _watchKeySet.Contains(key);
-
-								if (!isWatched)
+								foreach (var e in byComp)
 								{
-									if (GUILayout.Button("Watch", GUILayout.Width(60)))
+									foreach (var (memberName, getter) in e.members)
 									{
-										AddWatch(tmpRef);
-									}
-								}
-								else
-								{
-									if (GUILayout.Button("Remove", GUILayout.Width(60)))
-									{
-										RemoveByKey(key);
+										using (new EditorGUILayout.HorizontalScope())
+										{
+											EditorGUILayout.LabelField(memberName,
+												GUILayout.MinWidth(Ui.Width.MemberLabelMin),
+												GUILayout.MaxWidth(Ui.Width.MemberLabelMax));
+
+											var preview = SafeGetValue(getter);
+											EditorGUILayout.LabelField(preview, EditorStyles.textField,
+												GUILayout.MinWidth(Ui.Width.WatchValueFieldMin));
+
+											var tmpRef = MakeRef(e.owner, e.component, memberName);
+											var key = MakeKey(tmpRef);
+											var isWatched = _watchKeySet.Contains(key);
+
+											if (!isWatched)
+											{
+												if (GUILayout.Button("Watch", GUILayout.Width(Ui.Width.ButtonAction)))
+												{
+													AddWatch(tmpRef);
+												}
+											}
+											else
+											{
+												if (GUILayout.Button("Remove", GUILayout.Width(Ui.Width.ButtonAction)))
+												{
+													RemoveByKey(key);
+												}
+											}
+										}
 									}
 								}
 							}
 						}
 					}
-					EditorGUILayout.Space(2);
+					EditorGUILayout.Space(Ui.Height.Space);
 				}
+
 			}
 		}
 
@@ -285,6 +327,7 @@ namespace DebugTools.EditorUI
 			return new WatchedMemberRef
 			{
 				ownerGlobalId = gid,
+				ownerHierarchyPath = WatchStoreUtil.BuildHierarchyPath(go), // ← 追加
 				componentTypeName = comp.GetType().AssemblyQualifiedName,
 				memberName = member
 			};
@@ -373,11 +416,13 @@ namespace DebugTools.EditorUI
 					var r = new WatchedMemberRef
 					{
 						ownerGlobalId = it.ownerGlobalId,
+						ownerHierarchyPath = it.ownerHierarchyPath,
 						componentTypeName = it.componentTypeName,
 						memberName = it.memberName,
 					};
 					r.TryResolve();
 					AddWatch(r);
+
 				}
 			}
 			finally

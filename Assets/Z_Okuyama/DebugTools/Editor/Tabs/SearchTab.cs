@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -12,25 +12,57 @@ namespace DebugTools.EditorUI
 		public override string Id => "search";
 		public override string Title => "Search";
 
+		static class Ui
+		{
+			public static class Width
+			{
+				public const float ModeDropdown = 260f;
+				public const float ActiveSceneOnly = 140f;
+				public const float IncludeInactive = 125f;
+				public const float UnderSelection = 150f;
+
+				public const float SearchButton = 70f;
+				public const float ShowOnlyButton = 140f;
+				public const float RestoreButton = 130f;
+				public const float Hits = 80f;
+
+				public const float ResultMin = 200f;
+				public const float ResultMax = 500f;
+				public const float LayerAndTag = 150f;
+				public const float ShortButton = 50f;
+			}
+			public static class Height
+			{
+				public const float Space = 0f;
+			}
+			public static class Text
+			{
+				public const string NoSearch = "çµæœã¯ã“ã“ã«è¡¨ç¤ºã•ã‚Œã¾ã™";
+			}
+		}
+
+		const int kLayerMin = 0;
+		const int kLayerMax = 31;
+
 		enum Mode { Prefab, Component, Tag, Layer }
 		Mode _mode = Mode.Component;
 
 		string _query = "";
 
-		//ƒIƒvƒVƒ‡ƒ“
-		bool _includeInactive = true;//”ñƒAƒNƒeƒBƒuŠÜ‚Ş
-		bool _underSelectionOnly = false;//‘I‘ğ”z‰º‚Ì‚İ
-		bool _activeSceneOnly = true;// ƒAƒNƒeƒBƒuƒV[ƒ“ŒÀ’è
+		//ã‚ªãƒ—ã‚·ãƒ§ãƒ³
+		bool _includeInactive = true;//éã‚¢ã‚¯ãƒ†ã‚£ãƒ–å«ã‚€
+		bool _underSelectionOnly = false;//é¸æŠé…ä¸‹ã®ã¿
+		bool _activeSceneOnly = true;// ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã‚·ãƒ¼ãƒ³é™å®š
 
 		Vector2 _scroll;
 		readonly List<GameObject> _results = new();
 
 
 #if UNITY_2020_1_OR_NEWER
-		//‰Â‹ó‘Ô‚ÌƒXƒiƒbƒvƒVƒ‡ƒbƒg
+		//å¯è¦–çŠ¶æ…‹ã®ã‚¹ãƒŠãƒƒãƒ—ã‚·ãƒ§ãƒƒãƒˆ
 		class VisibilitySnapshot
 		{
-			public Dictionary<GameObject, bool> Hidden = new();//¦trueËŒ³X”ñ•\¦
+			public Dictionary<GameObject, bool> Hidden = new();//â€»trueâ‡’å…ƒã€…éè¡¨ç¤º
 			public Dictionary<GameObject, bool> PickingDisabled = new();
 		}
 		VisibilitySnapshot _lastSnapshot;
@@ -38,59 +70,58 @@ namespace DebugTools.EditorUI
 
 		//Function==================================================
 
-		//•`‰æ
+		//æç”»
 		public override void OnGUI()
 		{
 			EditorGUILayout.LabelField("Search of Scene Objects", EditorStyles.boldLabel);
 
-			//ƒ‚[ƒh‘I‘ğ
+			//ãƒ¢ãƒ¼ãƒ‰é¸æŠ
 			using (new EditorGUILayout.HorizontalScope())
 			{
-				_mode = (Mode)EditorGUILayout.EnumPopup(new GUIContent("Mode"), _mode, GUILayout.Width(260));
+				_mode = (Mode)EditorGUILayout.EnumPopup(new GUIContent("Mode"), _mode, GUILayout.Width(Ui.Width.ModeDropdown));
 				GUILayout.FlexibleSpace();
 			}
 
-			//“ü—Í
+			//å…¥åŠ›
 			using (new EditorGUILayout.HorizontalScope())
 			{
 				_query = EditorGUILayout.TextField(new GUIContent("Query"), _query);
 			}
 
-			//ƒIƒvƒVƒ‡ƒ“
+			//ã‚ªãƒ—ã‚·ãƒ§ãƒ³
 			using (new EditorGUILayout.HorizontalScope())
 			{
-				_activeSceneOnly = EditorGUILayout.ToggleLeft("Active Scene Only", _activeSceneOnly, GUILayout.Width(140));
-				_includeInactive = EditorGUILayout.ToggleLeft("Include Inactive", _includeInactive, GUILayout.Width(125));
-				_underSelectionOnly = EditorGUILayout.ToggleLeft("Under Selection Only", _underSelectionOnly, GUILayout.Width(150));
+				_activeSceneOnly = EditorGUILayout.ToggleLeft("Active Scene Only", _activeSceneOnly, GUILayout.Width(Ui.Width.ActiveSceneOnly));
+				_includeInactive = EditorGUILayout.ToggleLeft("Include Inactive", _includeInactive, GUILayout.Width(Ui.Width.IncludeInactive));
+				_underSelectionOnly = EditorGUILayout.ToggleLeft("Under Selection Only", _underSelectionOnly, GUILayout.Width(Ui.Width.UnderSelection));
 
 			}
 
-			//‘€ìƒ{ƒ^ƒ“ŒQ
+			//æ“ä½œãƒœã‚¿ãƒ³ç¾¤
 			using (new EditorGUILayout.HorizontalScope())
 			{
-				if (GUILayout.Button("Search", GUILayout.Width(70)))
+				if (GUILayout.Button("Search", GUILayout.Width(Ui.Width.SearchButton)))
 					RunSearch();
 
-				if (GUILayout.Button("Show Only Results", GUILayout.Width(140)))
+				if (GUILayout.Button("Show Only Results", GUILayout.Width(Ui.Width.ShowOnlyButton)))
 					ShowOnlyResults();
 
-				if (GUILayout.Button("Restore Visibility", GUILayout.Width(130)))
+				if (GUILayout.Button("Restore Visibility", GUILayout.Width(Ui.Width.RestoreButton)))
 					RestoreVisibility();
 
-				EditorGUILayout.LabelField($"Hits: {_results.Count}", GUILayout.Width(80));
+				EditorGUILayout.LabelField($"Hits: {_results.Count}", GUILayout.Width(Ui.Width.Hits));
 			}
 
 			HLine();
 
-			//Œ‹‰Êˆê——
-			//Œ‹‰Êˆê——
+			//çµæœä¸€è¦§
 			using (var s = new EditorGUILayout.ScrollViewScope(_scroll))
 			{
 				_scroll = s.scrollPosition;
 				
 				if (_results.Count == 0)
 				{
-					EditorGUILayout.HelpBox("Œ‹‰Ê‚Í‚±‚±‚É•\¦‚³‚ê‚Ü‚·", MessageType.None);
+					EditorGUILayout.HelpBox(Ui.Text.NoSearch, MessageType.None);
 				}
 				else
 				{
@@ -100,27 +131,27 @@ namespace DebugTools.EditorUI
 
 						using (new EditorGUILayout.HorizontalScope("box"))
 						{
-							using (new EditorGUILayout.VerticalScope(GUILayout.MinWidth(200f), GUILayout.MaxWidth(500f)))
+							using (new EditorGUILayout.VerticalScope(GUILayout.MinWidth(Ui.Width.ResultMin), GUILayout.MaxWidth(Ui.Width.ResultMax)))
 							{
 								EditorGUILayout.ObjectField(go, typeof(GameObject), true);
-								GUILayout.Space(0);
+								GUILayout.Space(Ui.Height.Space);
 							}
 
 							using (new EditorGUILayout.VerticalScope())
 							{
-								using (new EditorGUILayout.HorizontalScope())//1s–Ú
+								using (new EditorGUILayout.HorizontalScope())//1è¡Œç›®
 								{
-									EditorGUILayout.LabelField($"Layer: {LayerMask.LayerToName(go.layer)}({go.layer})", EditorStyles.miniLabel, GUILayout.Width(150));
+									EditorGUILayout.LabelField($"Layer: {LayerMask.LayerToName(go.layer)}({go.layer})", EditorStyles.miniLabel, GUILayout.Width(Ui.Width.LayerAndTag));
 									GUILayout.FlexibleSpace();
-									if (GUILayout.Button("Select", GUILayout.Width(50)))
+									if (GUILayout.Button("Select", GUILayout.Width(Ui.Width.ShortButton)))
 										Selection.activeObject = go;
 								}
 
-								using (new EditorGUILayout.HorizontalScope())//2s–Ú
+								using (new EditorGUILayout.HorizontalScope())//2è¡Œç›®
 								{
-									EditorGUILayout.LabelField($"Tag: {go.tag}", EditorStyles.miniLabel, GUILayout.Width(150));
+									EditorGUILayout.LabelField($"Tag: {go.tag}", EditorStyles.miniLabel, GUILayout.Width(Ui.Width.LayerAndTag));
 									GUILayout.FlexibleSpace();
-									if (GUILayout.Button("Frame", GUILayout.Width(50)))
+									if (GUILayout.Button("Frame", GUILayout.Width(Ui.Width.ShortButton)))
 										FrameGameObject(go);
 								}
 							}
@@ -130,7 +161,7 @@ namespace DebugTools.EditorUI
 			}
 		}
 
-		//ŒŸõ==================================================
+		//æ¤œç´¢==================================================
 		void RunSearch()
 		{
 			_results.Clear();
@@ -165,7 +196,7 @@ namespace DebugTools.EditorUI
 						if (string.IsNullOrWhiteSpace(_query)) break;
 						var q = _query.Trim();
 
-						//•”•ªˆê’v
+						//éƒ¨åˆ†ä¸€è‡´
 						_results.AddRange(candidates.Where(g =>
 						{
 							string tag = string.IsNullOrEmpty(g.tag) ? "Untagged" : g.tag;
@@ -181,16 +212,16 @@ namespace DebugTools.EditorUI
 						string q = _query.Trim();
 						int? layerNum = null;
 
-						//”’lƒ`ƒFƒbƒN
+						//æ•°å€¤ãƒã‚§ãƒƒã‚¯
 						if (int.TryParse(q, out int parsed))
 						{
-							if (parsed >= 0 && parsed <= 31)
+							if (parsed >= kLayerMin && parsed <= kLayerMax)
 							{
 								layerNum = parsed;
 							}
 						}
 
-						//Layer–¼
+						//Layerå
 						int layerByName = LayerMask.NameToLayer(q);
 						if (layerByName >= 0)
 							layerNum = layerNum ?? layerByName;
@@ -202,7 +233,7 @@ namespace DebugTools.EditorUI
 						}
 						else
 						{
-							//•”•ªˆê’v
+							//éƒ¨åˆ†ä¸€è‡´
 							_results.AddRange(candidates.Where(g =>
 							{
 								string layerName = LayerMask.LayerToName(g.layer);
@@ -215,7 +246,7 @@ namespace DebugTools.EditorUI
 			}
 		}
 
-		//GameObject—ñ‹“==================================================
+		//GameObjectåˆ—æŒ™==================================================
 		IEnumerable<GameObject> EnumerateScene(bool includeInactive, Transform scope, bool activeSceneOnly)
 		{
 			if (scope != null)
@@ -281,7 +312,7 @@ namespace DebugTools.EditorUI
 			}
 			return false;
 		}
-		//SceneView‚ÅƒtƒŒ[ƒ€
+		//SceneViewã§ãƒ•ãƒ¬ãƒ¼ãƒ 
 		void FrameGameObject(GameObject go)
 		{
 			if (go == null) { return; }
@@ -294,16 +325,16 @@ namespace DebugTools.EditorUI
 			}
 		}
 
-		//‰Â‹§Œä==================================================
+		//å¯è¦–åˆ¶å¾¡==================================================
 		void ShowOnlyResults()
 		{
 #if UNITY_2020_1_OR_NEWER
 			var svm = SceneVisibilityManager.instance;
 
-			//ó‘Ô•Û‘¶
+			//çŠ¶æ…‹ä¿å­˜
 			_lastSnapshot = TakeVisibilitySnapshot();
 
-			//ˆê’U‘S•”‰B‚µ‚½Œã•\¦
+			//ä¸€æ—¦å…¨éƒ¨éš ã—ãŸå¾Œè¡¨ç¤º
 			svm.HideAll();
 			foreach (var go in _results.Where(r => r != null))
 			{
@@ -319,7 +350,7 @@ namespace DebugTools.EditorUI
 #if UNITY_2020_1_OR_NEWER
 			if (_lastSnapshot == null)
 			{
-				//ƒXƒiƒbƒvƒVƒ‡ƒbƒg‚ª–³‚¢ê‡‚Í‘S•\¦
+				//ã‚¹ãƒŠãƒƒãƒ—ã‚·ãƒ§ãƒƒãƒˆãŒç„¡ã„å ´åˆã¯å…¨è¡¨ç¤º
 				var svm = SceneVisibilityManager.instance;
 				svm.ShowAll();
 				svm.EnableAllPicking();
@@ -328,18 +359,18 @@ namespace DebugTools.EditorUI
 
 			var svm2 = SceneVisibilityManager.instance;
 
-			//ˆê’U‘S•\¦
+			//ä¸€æ—¦å…¨è¡¨ç¤º
 			svm2.ShowAll();
 			svm2.EnableAllPicking();
 
-			//‰B‚ê‚Ä‚¢‚½‚à‚Ì‚ğ‰B‚·
+			//éš ã‚Œã¦ã„ãŸã‚‚ã®ã‚’éš ã™
 			foreach (var kv in _lastSnapshot.Hidden)
 			{
 				var go = kv.Key;
 				if (go == null) continue;
 				if (kv.Value) svm2.Hide(go, true);
 			}
-			//ƒsƒbƒLƒ“ƒO•s‰Â
+			//ãƒ”ãƒƒã‚­ãƒ³ã‚°ä¸å¯
 			foreach (var kv in _lastSnapshot.PickingDisabled)
 			{
 				var go = kv.Key;
@@ -357,7 +388,7 @@ namespace DebugTools.EditorUI
 			var snap = new VisibilitySnapshot();
 			var svm = SceneVisibilityManager.instance;
 
-			//ó‘Ô•Û‘¶
+			//çŠ¶æ…‹ä¿å­˜
 			Transform scope = null;
 			if (_underSelectionOnly && Selection.activeTransform != null)
 				scope = Selection.activeTransform;
@@ -365,7 +396,7 @@ namespace DebugTools.EditorUI
 			foreach (var go in EnumerateScene(true, scope, _activeSceneOnly))
 			{
 				if (go == null) { continue; }
-				//d•¡ƒL[”ğ‚¯
+				//é‡è¤‡ã‚­ãƒ¼é¿ã‘
 				if (!snap.Hidden.ContainsKey(go))
 				{
 					snap.Hidden.Add(go, svm.IsHidden(go, true));

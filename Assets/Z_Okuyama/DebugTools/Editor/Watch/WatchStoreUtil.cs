@@ -1,10 +1,10 @@
-using System;
+ï»¿using System;
 using UnityEditor;
 using UnityEngine;
 
 namespace DebugTools.EditorUI
 {
-	//GlobalObjectId—p
+	//GlobalObjectIdç”¨
 	public static class WatchStoreUtil
 	{
 		public static bool TryMakeGlobalId(GameObject go, out string id)
@@ -18,32 +18,19 @@ namespace DebugTools.EditorUI
 			return !gid.Equals(default);
 		}
 
-		//•\Ž¦—p(ObjectName.ComponentName)
-		public static string BuildOwnerLabel(GameObject go, Component comp)
+		//ãƒ‘ã‚¹
+		public static string BuildHierarchyPath(GameObject go)
 		{
-
-			return (go == null)
-				? "(missing)"
-				: $"{go.name}.{((comp != null) ? comp.GetType().Name : "?")}";
+			if (go == null) return null;
+			var path = go.name;
+			var t = go.transform;
+			while (t.parent != null)
+			{
+				t = t.parent;
+				path = t.name + "/" + path;
+			}
+			return path;
 		}
 
-		//GlobalId‚ÆŒ^–¼‚©‚çŽÀ‘Ì
-		public static bool TryResolveOwner(string ownerGlobalId, string componentTypeName, out GameObject go, out Component comp)
-		{
-			go = null;
-			comp = null;
-
-			if (!GlobalObjectId.TryParse(ownerGlobalId, out var gid)) { return false; }
-
-			var obj = GlobalObjectId.GlobalObjectIdentifierToObjectSlow(gid);
-			go = obj as GameObject;
-			if (go == null) { return false; }
-
-			var type = Type.GetType(componentTypeName, throwOnError: false);
-			if (type == null) { return false; }
-
-			comp = go.GetComponent(type);
-			return comp != null;
-		}
 	}
 }
