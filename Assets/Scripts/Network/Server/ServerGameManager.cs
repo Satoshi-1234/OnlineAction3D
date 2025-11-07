@@ -185,7 +185,7 @@ public class ServerGameManager : NetworkManager
         GameObject player = Instantiate(playerPrefab);
         // PlayerConnectionの可視性を所有者のみに限定する
         NetworkIdentity identity = player.GetComponent<NetworkIdentity>();
-        identity.visibility = Visibility.ForceHidden; // まず全員から隠す
+        //identity.visibility = Visibility.ForceHidden; // まず全員から隠す
         NetworkServer.AddPlayerForConnection(conn, player); //AddObserverを行っている
         if (identity.observers.Count > 0) 
             Debug.Log($"[Server] observers Count: {identity.observers.Count},Send assetID-{identity.assetId}");
