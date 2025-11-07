@@ -872,7 +872,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thisScene: 2
-  nextSceneRequest: 0
+  nextSceneRequest: 3
   nextSceneAddress: Assets/Scenes/Debug/Test.unity
   localObjectsToLoad:
   - m_AssetGUID: 
