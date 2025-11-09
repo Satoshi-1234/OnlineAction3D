@@ -156,6 +156,6 @@ public class UI_ServerList : MonoBehaviour
     }
     private void OnDestroy()
     {
-        Debug.LogError($"[Title] Destroy");
+        Debug.Log($"[Title] Destroy");
     }
 }

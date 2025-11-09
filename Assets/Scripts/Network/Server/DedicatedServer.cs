@@ -1,4 +1,5 @@
 ﻿using Mirror;
+//using System;
 using UnityEngine;
 public class DedicatedServer : MonoBehaviour
 {
@@ -24,7 +25,10 @@ public class DedicatedServer : MonoBehaviour
             // 広告開始
             var discovery = gameObject.AddComponent<LanDiscovery>();
             discovery.AdvertiseServer();
-            Debug.Log($"[ServerDiscovery] Port: {discovery.GetBroadcastPort()}");
+            Debug.Log($"[Server-GameName] {(nm.authenticator as CustomNetworkManager)?.gameId ?? "Unknown"}");
+            Debug.Log($"[Server-Game.Ver] {(nm.authenticator as CustomNetworkManager)?.version ?? "0.0.0"}");
+            Debug.Log($"[ServerDiscovery] IPv4 : {discovery.GetIpAddressIPv4()}");
+            Debug.Log($"[ServerDiscovery] Port : {discovery.GetBroadcastPort()}");
         }
         else
         {

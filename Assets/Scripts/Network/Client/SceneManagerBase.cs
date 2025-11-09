@@ -3,14 +3,9 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.AddressableAssets;
-public enum GameScene 
-{ 
-    Debug,
-    Title, 
-    Home, 
-    BattleForest, 
-    BattleCastle 
-}
+#if UNITY_EDITOR
+using UnityEditor; // エディタでのみ使用
+#endif
 public abstract class SceneManagerBase : MonoBehaviour
 {
     // このクラスのシングルトンインスタンス
@@ -21,8 +16,10 @@ public abstract class SceneManagerBase : MonoBehaviour
     protected GameScene thisScene; // ★ Inspectorで設定
 
     [Header("シーン遷移設定")]
-    public GameScene nextSceneRequest = GameScene.Home;
-    public string nextSceneAddress = GameScene.Home.ToString();
+    [SerializeField]
+    private LocalSceneSettings sceneSettings;
+    private GameScene nextSceneRequest = GameScene.Home;
+    private string nextSceneAddress = GameScene.Home.ToString();
 
     [Header("ローカルオブジェクト設定")]
     [Tooltip("このシーンで非同期にロードするローカルオブジェクト（建物、障害物など）のリスト")]
@@ -46,56 +43,16 @@ public abstract class SceneManagerBase : MonoBehaviour
         // 1. シングルトンとして自身を登録
         Instance = this;
 
-        // -----------------------------------------------
-        // ▼ 2. ローカルオブジェクトのロードフェーズ
-        // -----------------------------------------------
-        Debug.Log($"[SceneManagerBase] ローカルオブジェクトのロードを開始します...");
-
-        totalObjectsToLoad = localObjectsToLoad.Count;
-        readyObjectCount = 0;
-
-        if (totalObjectsToLoad > 0)
+        if(sceneSettings == null)
         {
-            // ★ リストをコピーして、無効な参照を安全に除外できるようにする
-            var validAssetsToLoad = new List<AssetReference>(localObjectsToLoad);
-
-            foreach (var assetRef in localObjectsToLoad)
-            {
-                // ★★★ ガード節を追加 ★★★
-                // アセットが割り当てられているか (GUIDが有効か) をチェック
-                if (assetRef == null || !assetRef.RuntimeKeyIsValid())
-                {
-                    Debug.LogError($"[SceneManagerBase] 'Local Objects To Load' リストに空または無効な参照が含まれています。Inspectorを確認してください。");
-
-                    // ★★★ 重要 ★★★
-                    // 永久待機を防ぐため、ロード対象の総数から除外する
-                    totalObjectsToLoad--;
-                    validAssetsToLoad.Remove(assetRef); // コピーしたリストから削除
-                    continue; // この空のアセットはスキップ
-                }
-            }
-
-            // ★修正★ 有効なアセットリストに対してInstantiateを実行
-            foreach (var assetRef in validAssetsToLoad)
-            {
-                Addressables.InstantiateAsync(assetRef);
-            }
-
-            // totalObjectsToLoad は既に無効な分が引かれているので、
-            // この待機ループは正しく動作する
-            Debug.Log($"[SceneManagerBase] 全 {totalObjectsToLoad} 個の（有効な）ローカルオブジェクトの準備完了報告を待機します...");
-            while (readyObjectCount < totalObjectsToLoad)
-            {
-                yield return null;
-            }
-
-            Debug.Log($"[SceneManagerBase] すべてのローカルオブジェクトが準備完了しました!");
-        }
-        else
-        {
-            Debug.LogWarning($"[SceneManagerBase] ローカルオブジェクトは0個です。");
+            Debug.LogError($"[Client/{thisScene}] sceneSettings がnullです");
+            new WaitForSeconds(0.1f);
         }
 
+        {
+            nextSceneRequest = sceneSettings.nextSceneRequest;
+            nextSceneAddress = sceneSettings.nextSceneAddress;
+        }
         // -----------------------------------------------
         // ▼ 3. ネットワーク処理の開始フェーズ
         // -----------------------------------------------

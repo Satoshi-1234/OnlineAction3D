@@ -149,8 +149,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thisScene: 0
-  nextSceneRequest: 2
-  nextSceneAddress: Home
+  sceneSettings: {fileID: 11400000, guid: ff842aa9fdd3e6340a909ee95ab48883, type: 2}
   localObjectsToLoad: []
 --- !u!4 &98964744
 Transform:

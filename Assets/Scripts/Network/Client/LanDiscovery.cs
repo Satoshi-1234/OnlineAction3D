@@ -4,7 +4,7 @@ using Mirror;
 using Mirror.Discovery;
 using System.Net;
 using System.Net.Sockets;
-using Unity.VisualScripting;
+//using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
 //using VSCodeEditor;
@@ -28,7 +28,6 @@ public class LanDiscovery : NetworkDiscoveryBase<DiscoveryRequest, DiscoveryResp
             // endpointは直接保持できないのでstring化
             _address = GetLocalIPv4(),
             _port = transport.Port,
-            //_port = (nm.transport as kcp2k.KcpTransport)?.Port ?? 7777,
             // CustomNetworkManager の識別情報をここで流用
             _gameId = (nm.authenticator as CustomNetworkManager)?.gameId ?? "Unknown",
             _version = (nm.authenticator as CustomNetworkManager)?.version ?? "0.0.0",
@@ -51,7 +50,7 @@ public class LanDiscovery : NetworkDiscoveryBase<DiscoveryRequest, DiscoveryResp
     }
     public int GetBroadcastPort() => serverBroadcastListenPort;
     public IPAddress GetIPAddressPort() => IPAddress.Broadcast;
-
+    public string GetIpAddressIPv4() => GetLocalIPv4();
     /// <summary>
     /// マシンのローカルIPv4アドレスを取得
     /// </summary>

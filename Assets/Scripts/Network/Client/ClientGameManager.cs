@@ -42,65 +42,65 @@ public class ClientGameManager : NetworkManager // NetworkManagerを継承
         Debug.LogWarning($"'{str}' は GameScene 列挙体に存在しません。");
         return GameScene.Debug;
     }
-    void OnGUI()
-    {
-        GUILayout.Label($"Build Path: {UnityEngine.AddressableAssets.Addressables.BuildPath}");
-        GUILayout.Label($"Runtime Path: {UnityEngine.AddressableAssets.Addressables.RuntimePath}");
-        GUILayout.Label($"Initialized: {isInitialized}");
+    //void OnGUI()
+    //{
+    //    GUILayout.Label($"Build Path: {UnityEngine.AddressableAssets.Addressables.BuildPath}");
+    //    GUILayout.Label($"Runtime Path: {UnityEngine.AddressableAssets.Addressables.RuntimePath}");
+    //    GUILayout.Label($"Initialized: {isInitialized}");
 
-        GUILayout.Label("--- loadedPrefabs ---");
-        int validPrefabCount = 0;
-        foreach (var prefab in spawnPrefabs)
-        {
-            if (prefab == null)
-            {
-                GUILayout.Label($"spawnPrefabsObject: !!! PREFAB IS NULL !!!");
-            }
-            else
-            {
-                // prefabがnullでないことを確認してからgameObjectにアクセス
-                GameObject go = prefab.gameObject;
-                if (go == null)
-                {
-                    // prefab自体は存在するが、gameObjectプロパティがnullになる異常ケース
-                    GUILayout.Label($"spawnPrefabsObject: Prefab exists, but gameObject is NULL!");
-                }
-                else
-                {
-                    GUILayout.Label($"spawnPrefabsObject: {go.name}");
-                    validPrefabCount++; // 有効なプレハブをカウント
-                }
-            }
-        }
-        GUILayout.Label($"Valid Prefabs Count in spawnPrefabs: {validPrefabCount}"); // 有効なプレハブ数を表示
-                                                                                     // ★★★ ここまで修正 ★★★
+    //    GUILayout.Label("--- loadedPrefabs ---");
+    //    int validPrefabCount = 0;
+    //    foreach (var prefab in spawnPrefabs)
+    //    {
+    //        if (prefab == null)
+    //        {
+    //            GUILayout.Label($"spawnPrefabsObject: !!! PREFAB IS NULL !!!");
+    //        }
+    //        else
+    //        {
+    //            // prefabがnullでないことを確認してからgameObjectにアクセス
+    //            GameObject go = prefab.gameObject;
+    //            if (go == null)
+    //            {
+    //                // prefab自体は存在するが、gameObjectプロパティがnullになる異常ケース
+    //                GUILayout.Label($"spawnPrefabsObject: Prefab exists, but gameObject is NULL!");
+    //            }
+    //            else
+    //            {
+    //                GUILayout.Label($"spawnPrefabsObject: {go.name}");
+    //                validPrefabCount++; // 有効なプレハブをカウント
+    //            }
+    //        }
+    //    }
+    //    GUILayout.Label($"Valid Prefabs Count in spawnPrefabs: {validPrefabCount}"); // 有効なプレハブ数を表示
+    //                                                                                 // ★★★ ここまで修正 ★★★
 
-        GUILayout.Label("--- NetworkClient.prefabs ---");
-        int validNetworkClientPrefabCount = 0;
-        foreach (var kvp in NetworkClient.prefabs)
-        {
-            if (kvp.Value == null)
-            {
-                GUILayout.Label($"NetworkClientObject {kvp.Key} : NULL");
-            }
-            else
-            {
-                // 値がnullでないことを確認してからnameにアクセス
-                GameObject go = kvp.Value.gameObject;
-                if (go == null)
-                {
-                    GUILayout.Label($"NetworkClientObject {kvp.Key} : Value exists, but gameObject is NULL!");
-                }
-                else
-                {
-                    GUILayout.Label($"NetworkClientObject {kvp.Key} : {go.name}");
-                    validNetworkClientPrefabCount++; // 有効なプレハブをカウント
-                }
-            }
-        }
-        GUILayout.Label($"Valid Prefabs Count in NetworkClient.prefabs: {validNetworkClientPrefabCount}"); // 有効なプレハブ数を表示
-        GUILayout.Label("--------------------------");
-    }
+    //    GUILayout.Label("--- NetworkClient.prefabs ---");
+    //    int validNetworkClientPrefabCount = 0;
+    //    foreach (var kvp in NetworkClient.prefabs)
+    //    {
+    //        if (kvp.Value == null)
+    //        {
+    //            GUILayout.Label($"NetworkClientObject {kvp.Key} : NULL");
+    //        }
+    //        else
+    //        {
+    //            // 値がnullでないことを確認してからnameにアクセス
+    //            GameObject go = kvp.Value.gameObject;
+    //            if (go == null)
+    //            {
+    //                GUILayout.Label($"NetworkClientObject {kvp.Key} : Value exists, but gameObject is NULL!");
+    //            }
+    //            else
+    //            {
+    //                GUILayout.Label($"NetworkClientObject {kvp.Key} : {go.name}");
+    //                validNetworkClientPrefabCount++; // 有効なプレハブをカウント
+    //            }
+    //        }
+    //    }
+    //    GUILayout.Label($"Valid Prefabs Count in NetworkClient.prefabs: {validNetworkClientPrefabCount}"); // 有効なプレハブ数を表示
+    //    GUILayout.Label("--------------------------");
+    //}
     // (Awakeは変更なし)
     public override void Awake()
     {

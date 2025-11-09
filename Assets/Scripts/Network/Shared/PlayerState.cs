@@ -1,6 +1,6 @@
 using UnityEngine;
 using Mirror;
-using System.Collections.Generic;
+//using System.Collections.Generic;
 
 public class PlayerState : NetworkBehaviour
 {
@@ -13,11 +13,8 @@ public class PlayerState : NetworkBehaviour
     public int selectedCharacterId = 0; // 0: Aキャラ, 1: Bキャラ, ...
     public override void OnStartClient()
     {
-        // このオブジェクトが生成されたら、シーンをまたいでも破棄されないように設定する
-        Debug.Log($"[DEBUG/CLIENT] PlayerState.OnStartClient");
-        DontDestroyOnLoad(this.gameObject);
         base.OnStartClient();
-        Debug.LogWarning($"[Client-PlayerState] OnStartClient: netId={netId}. オブジェクトは生成されました。");
+        Debug.Log($"[DEBUG/CLIENT] PlayerState.OnStartClient");
     }
     /// <summary>
     /// オブジェクトの「所有権」がクライアントに与えられた瞬間に呼ばれます
@@ -25,7 +22,7 @@ public class PlayerState : NetworkBehaviour
     public override void OnStartAuthority()
     {
         base.OnStartAuthority();
-        Debug.LogWarning($"[Client-PlayerState] OnStartAuthority: netId={netId}. 所有権が与えられました。");
+        Debug.Log($"[Client-PlayerState] OnStartAuthority: netId={netId}. 所有権が与えられました。");
     }
 
     /// <summary>
@@ -34,12 +31,13 @@ public class PlayerState : NetworkBehaviour
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        Debug.LogWarning($"[Client-PlayerState] OnStartLocalPlayer: netId={netId}. ★★★ローカルプレイヤーとして設定されました★★★");
-        // このログが表示されれば、NetworkClient.localPlayer は null ではなくなります
+        Debug.Log($"[Client-PlayerState] OnStartLocalPlayer: netId={netId}. ★★★ローカルプレイヤーとして設定されました★★★");
     }
 #if !UNITY_SERVER
     private void Awake()
     {
+        DontDestroyOnLoad(this.gameObject);
+
         Debug.Log($"[DEBUG/CLIENT] PlayerState.Awake - Generate player object。isLocalPlayer: {isLocalPlayer}");
     }
 
