@@ -1559,7 +1559,7 @@ MonoBehaviour:
   connectButton: {fileID: 2043351218}
   startButton: {fileID: 639107647}
   serverIP: 192.168.11.5
-  serverPort: 7341
+  serverPort: 7733
   editorConnectButton: {fileID: 44972261}
 --- !u!4 &1027148877
 Transform:

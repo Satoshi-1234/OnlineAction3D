@@ -58,7 +58,7 @@ public class PlayerState : NetworkBehaviour
     [Command]
     public void CmdPlayerReadyInBattle()
     {
-        Debug.Log($"[Server-Command]: Player {connectionToClient.connectionId} Set BattleScene");
+        //Debug.Log($"[Server-Command]: Player {connectionToClient.connectionId} Set BattleScene");
         // このコードはサーバー上でのみ実行されるため、安全に呼び出せる
         ServerGameManager.Instance.SpawnCharacterForPlayer(connectionToClient, selectedCharacterId);
     }
