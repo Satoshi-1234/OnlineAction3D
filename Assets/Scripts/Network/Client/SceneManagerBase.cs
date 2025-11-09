@@ -3,9 +3,6 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.AddressableAssets;
-#if UNITY_EDITOR
-using UnityEditor; // エディタでのみ使用
-#endif
 public abstract class SceneManagerBase : MonoBehaviour
 {
     // このクラスのシングルトンインスタンス
@@ -18,8 +15,6 @@ public abstract class SceneManagerBase : MonoBehaviour
     [Header("シーン遷移設定")]
     [SerializeField]
     private LocalSceneSettings sceneSettings;
-    //private GameScene nextSceneRequest = GameScene.Home;
-    //private string nextSceneAddress = GameScene.Home.ToString();
 
     [Header("ローカルオブジェクト設定")]
     [Tooltip("このシーンで非同期にロードするローカルオブジェクト（建物、障害物など）のリスト")]
@@ -48,11 +43,6 @@ public abstract class SceneManagerBase : MonoBehaviour
             Debug.LogError($"[Client/{thisScene}] sceneSettings がnullです");
             new WaitForSeconds(0.1f);
         }
-
-        //{
-        //    nextSceneRequest = sceneSettings.nextSceneRequest;
-        //    nextSceneAddress = sceneSettings.nextSceneAddress;
-        //}
         // -----------------------------------------------
         // ▼ 3. ネットワーク処理の開始フェーズ
         // -----------------------------------------------
