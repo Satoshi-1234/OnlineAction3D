@@ -3,10 +3,9 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "MySceneSettings.local.asset", menuName = "Game/Scene Settings")]
 public class LocalSceneSettings : ScriptableObject
 {
-    [Header("このアセット自体は .gitignore で管理対象外にします")]
     [Tooltip("ローカル環境でのみ使用する次シーン設定")]
     public GameScene nextSceneRequest = GameScene.Home;
-
+    [Header("↑”Debug”を使用する場合のみアドレス入力必須！")]
     [Tooltip("ローカル環境でのみ使用する次シーンアドレス")]
     public string nextSceneAddress = GameScene.Home.ToString();
 }
