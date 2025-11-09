@@ -18,8 +18,8 @@ public abstract class SceneManagerBase : MonoBehaviour
     [Header("シーン遷移設定")]
     [SerializeField]
     private LocalSceneSettings sceneSettings;
-    private GameScene nextSceneRequest = GameScene.Home;
-    private string nextSceneAddress = GameScene.Home.ToString();
+    //private GameScene nextSceneRequest = GameScene.Home;
+    //private string nextSceneAddress = GameScene.Home.ToString();
 
     [Header("ローカルオブジェクト設定")]
     [Tooltip("このシーンで非同期にロードするローカルオブジェクト（建物、障害物など）のリスト")]
@@ -49,10 +49,10 @@ public abstract class SceneManagerBase : MonoBehaviour
             new WaitForSeconds(0.1f);
         }
 
-        {
-            nextSceneRequest = sceneSettings.nextSceneRequest;
-            nextSceneAddress = sceneSettings.nextSceneAddress;
-        }
+        //{
+        //    nextSceneRequest = sceneSettings.nextSceneRequest;
+        //    nextSceneAddress = sceneSettings.nextSceneAddress;
+        //}
         // -----------------------------------------------
         // ▼ 3. ネットワーク処理の開始フェーズ
         // -----------------------------------------------
@@ -112,7 +112,8 @@ public abstract class SceneManagerBase : MonoBehaviour
     /// </summary>
     protected void RequestSceneTransition()
     {
-        ClientGameManager.Instance.RequestServerSceneChange(nextSceneRequest, nextSceneAddress);
+        Debug.Log($"[Client/{thisScene}] ClientGameManagerにシーン遷移を依頼する({sceneSettings.name})　{sceneSettings.nextSceneRequest.ToString()} : {sceneSettings.nextSceneAddress}");
+        ClientGameManager.Instance.RequestServerSceneChange(sceneSettings.nextSceneRequest, sceneSettings.nextSceneAddress);
     }
 
     /// <summary>
