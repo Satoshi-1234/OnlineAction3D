@@ -1,0 +1,9 @@
+{
+  "name": "InspectorVariableProperties.Editor",
+  "rootNamespace": "InspectorVariableProperties.Editor",
+  "references": [
+    "InspectorVariableProperties.Runtime"
+  ],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

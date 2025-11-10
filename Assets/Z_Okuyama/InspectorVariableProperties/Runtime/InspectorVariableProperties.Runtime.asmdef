@@ -1,0 +1,8 @@
+{
+  "name": "InspectorVariableProperties.Runtime",
+  "rootNamespace": "InspectorVariableProperties",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}
