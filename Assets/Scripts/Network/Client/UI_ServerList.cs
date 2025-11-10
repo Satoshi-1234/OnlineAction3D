@@ -13,10 +13,12 @@ public class UI_ServerList : MonoBehaviour
     public Button startButton;          // ホームへ移行するボタンを紐づける
     private List<DiscoveryResponse> discoveredServers = new List<DiscoveryResponse>();
 #if UNITY_EDITOR
-    [Header("サーバーIPアドレス")]
-    [SerializeField] private string serverIP = "None";
-    [Header("サーバーポート")]
-    [SerializeField] private ushort serverPort = 7777;
+    [Header("EditorNetworkSetting")]
+    [SerializeField] private EditorNetworkSettings networkEditor;
+    //[Header("サーバーIPアドレス")]
+    //[SerializeField] private string serverIP = "None";
+    //[Header("サーバーポート")]
+    //[SerializeField] private ushort serverPort = 7777;
     [Header("接続ボタン")]
     public Button editorConnectButton;    // エディタ用接続ボタンを紐づける
 #endif
@@ -105,7 +107,12 @@ public class UI_ServerList : MonoBehaviour
 #elif UNITY_EDITOR
     public void OnClickDirectConnect()
     {
-        ClientGameManager.Instance.ConnectToServer(serverIP, serverPort);
+        if(networkEditor == null)
+        {
+            Debug.LogError($"[Client/Error] networkEditor がnullです！");
+            return;
+        }
+        ClientGameManager.Instance.ConnectToServer(networkEditor.serverIPv4, networkEditor.serverPort);
     }
 #endif
     private void FixedUpdate()

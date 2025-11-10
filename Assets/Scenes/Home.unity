@@ -872,7 +872,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thisScene: 2
-  sceneSettings: {fileID: 11400000, guid: 779cd09a14f77204492722442fa15b4f, type: 2}
+  sceneSettings: {fileID: 11400000, guid: 3583a9523f749534b8e7099290b14161, type: 2}
   localObjectsToLoad: []
   selectCharacter1: {fileID: 1727413997}
   selectCharacter2: {fileID: 283364840}
