@@ -6,6 +6,19 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 public class ServerGameManager : NetworkManager
 {
+    public class Match
+    {
+        public uint matchId;
+        public GameScene scene;
+        public List<PlayerState> players = new List<PlayerState>();
+
+        public Match(uint id, GameScene scene)
+        {
+            matchId = id;
+            this.scene = scene;
+        }
+    }
+
     public static ServerGameManager Instance { get; private set; }
     [Header("認証プレハブ")]
     [Tooltip("実行時に生成する認証コンポーネントのプレハブ")]
@@ -13,6 +26,21 @@ public class ServerGameManager : NetworkManager
     [Header("キャラクタープレハブ")]
     private List<GameObject> characterPrefabs = new List<GameObject>();
     private bool prefabsLoaded = false;
+
+    [Header("マッチング設定")]
+    [Tooltip("マッチング成立に必要な人数")]
+    [SerializeField]
+    private int playersPerMatch = 2;
+
+    // マッチング待機中のプレイヤーキュー
+    private readonly Queue<PlayerState> matchmakingQueue = new Queue<PlayerState>();
+
+    // 進行中のバトルリスト (MatchID, Match)
+    private readonly Dictionary<uint, Match> activeMatches = new Dictionary<uint, Match>();
+
+    // 次に生成するMatchID
+    private uint nextMatchId = 1;
+
     public override void Awake()
     {
         base.Awake();
@@ -155,6 +183,10 @@ public class ServerGameManager : NetworkManager
 
     void OnClientSceneReady(NetworkConnectionToClient conn, ClientSceneReadyRequest msg)
     {
+        if (conn.identity != null && conn.identity.TryGetComponent<PlayerState>(out var playerState))
+        {
+            playerState.currentScene = msg._nowScene;
+        }
         Debug.Log($"[Server-GetRequest] {conn.connectionId} : {msg._nowScene.ToString()} is Ready!");
         switch (msg._nowScene)
         {
@@ -190,7 +222,114 @@ public class ServerGameManager : NetworkManager
         if (identity.observers.Count > 0) 
             Debug.Log($"[Server] observers Count: {identity.observers.Count},Send assetID-{identity.assetId}");
     }
-    public void SpawnCharacterForPlayer(NetworkConnectionToClient conn, int characterId)
+
+    /// <summary>
+    /// PlayerStateからマッチング待機キューへの追加を要求される
+    /// </summary>
+    public void AddPlayerToMatchmakingQueue(PlayerState player)
+    {
+        if (player.status != PlayerStatus.Connected)
+        {
+            Debug.LogWarning($"[Server] Player {player.netId} is already {player.status}. Cannot add to queue.");
+            return;
+        }
+
+        if (matchmakingQueue.Contains(player))
+        {
+            Debug.LogWarning($"[Server] Player {player.netId} is already in queue.");
+            return;
+        }
+
+        player.status = PlayerStatus.InQueue;
+        matchmakingQueue.Enqueue(player);
+        Debug.Log($"[Server] Player {player.netId} added to queue. (Queue: {matchmakingQueue.Count}/{playersPerMatch})");
+
+        // キューに必要な人数が揃ったかチェック
+        CheckForMatchStart();
+    }
+
+    /// <summary>
+    /// PlayerStateからマッチングキューのキャンセルを要求される
+    /// </summary>
+    public void RemovePlayerFromMatchmakingQueue(PlayerState player)
+    {
+        if (player.status != PlayerStatus.InQueue) return;
+
+        // Queueは直接Removeできないため、再構築する
+        var newQueue = matchmakingQueue.Where(p => p != player);
+        matchmakingQueue.Clear();
+        foreach (var p in newQueue)
+        {
+            matchmakingQueue.Enqueue(p);
+        }
+
+        player.status = PlayerStatus.Connected;
+        Debug.Log($"[Server] Player {player.netId} removed from queue.");
+    }
+
+    /// <summary>
+    /// マッチング成立をチェックし、成立すればバトルを開始する
+    /// </summary>
+    private void CheckForMatchStart()
+    {
+        if (matchmakingQueue.Count >= playersPerMatch)
+        {
+            Debug.Log($"[Server] Matching Success. StartBattle");
+
+            // バトルで使用するシーンを決定（例：ランダム）
+            GameScene battleScene = GameScene.BattleCastle; //
+
+            // 新しいMatchオブジェクトを作成
+            Match newMatch = new Match(nextMatchId++, battleScene);
+            activeMatches.Add(newMatch.matchId, newMatch);
+
+            // キューから必要人数を取り出してMatchに登録
+            for (int i = 0; i < playersPerMatch; i++)
+            {
+                PlayerState player = matchmakingQueue.Dequeue();
+                player.status = PlayerStatus.InBattle;
+                player.matchId = newMatch.matchId; // ★重要：PlayerStateにMatchIDをセット
+                newMatch.players.Add(player);
+            }
+
+            // Matchに登録された全プレイヤーにシーン遷移を命令
+            foreach (var player in newMatch.players)
+            {
+                // OnClientSceneChangeをトリガーする
+                player.connectionToClient.Send(new SceneMessage
+                {
+                    sceneName = battleScene.ToString(),
+                    sceneOperation = SceneOperation.Normal,
+                    customHandling = true
+                });
+            }
+        }
+    }
+
+    //public void SpawnCharacterForPlayer(NetworkConnectionToClient conn, int characterId)
+    //{
+    //    if (characterId < 0 || characterId >= characterPrefabs.Count)
+    //    {
+    //        Debug.LogError($"[Server-Error] invalid ID: {characterId}");
+    //        return;
+    //    }
+
+    //    GameObject characterPrefab = characterPrefabs[characterId];
+    //    GameObject characterInstance = Instantiate(characterPrefab, new Vector3(0, 1, 0), Quaternion.identity);
+    //    NetworkPlayerController characterController = characterInstance.GetComponent<NetworkPlayerController>();
+    //    NetworkIdentity characterIdentity = characterInstance.GetComponent<NetworkIdentity>();
+    //    // 試合IDを設定
+    //    uint newMatchId = 1;
+    //    characterController.matchId = newMatchId;
+
+    //    // プレイヤーオブジェクトをキャラクターに置き換え
+    //    NetworkServer.ReplacePlayerForConnection(conn, characterInstance, ReplacePlayerOptions.Destroy);
+    //    Debug.Log($"[Server] Conn {conn.connectionId} replace Character");
+
+    //    // 新しいmatchIdに基づいて、このキャラクターの可視性をサーバーに強制的に再計算させる
+    //    NetworkServer.RebuildObservers(characterIdentity, false);
+    //}
+    public void SpawnCharacterForPlayer(NetworkConnectionToClient conn, int characterId, uint matchId)
     {
         if (characterId < 0 || characterId >= characterPrefabs.Count)
         {
@@ -198,19 +337,26 @@ public class ServerGameManager : NetworkManager
             return;
         }
 
+        // ★重要：引数のmatchIdが 0 (バトル外) でないかチェック
+        if (matchId == 0 || !activeMatches.ContainsKey(matchId))
+        {
+            Debug.LogError($"[Server-Error] Player {conn.connectionId} tried to spawn in invalid matchId: {matchId}");
+            return;
+        }
+
         GameObject characterPrefab = characterPrefabs[characterId];
         GameObject characterInstance = Instantiate(characterPrefab, new Vector3(0, 1, 0), Quaternion.identity);
         NetworkPlayerController characterController = characterInstance.GetComponent<NetworkPlayerController>();
         NetworkIdentity characterIdentity = characterInstance.GetComponent<NetworkIdentity>();
-        // 試合IDを設定
-        uint newMatchId = 1;
-        characterController.matchId = newMatchId;
+
+        // ★修正： 試合IDを 1 で固定せず、引数のmatchIdを設定する
+        characterController.matchId = matchId;
 
         // プレイヤーオブジェクトをキャラクターに置き換え
         NetworkServer.ReplacePlayerForConnection(conn, characterInstance, ReplacePlayerOptions.Destroy);
-        Debug.Log($"[Server] Conn {conn.connectionId} replace Character");
+        Debug.Log($"[Server] Conn {conn.connectionId} replace Character for Match {matchId}");
 
-        // 新しいmatchIdに基づいて、このキャラクターの可視性をサーバーに強制的に再計算させる
+        // 可視性を再計算
         NetworkServer.RebuildObservers(characterIdentity, false);
     }
 }

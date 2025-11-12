@@ -1,6 +1,13 @@
 using UnityEngine;
 using Mirror;
-//using System.Collections.Generic;
+
+// プレイヤーの現在のステータス
+public enum PlayerStatus
+{
+    Connected,  // 接続完了（Homeシーン）
+    InQueue,    // マッチング待機中
+    InBattle    // バトル中
+}
 
 public class PlayerState : NetworkBehaviour
 {
@@ -11,6 +18,14 @@ public class PlayerState : NetworkBehaviour
     // [SyncVar]により、この値はサーバーから全クライアントに自動同期される
     [SyncVar]
     public int selectedCharacterId = 0; // 0: Aキャラ, 1: Bキャラ, ...
+
+    // [SyncVar] このプレイヤーの現在のステータス
+    [SyncVar]
+    public PlayerStatus status = PlayerStatus.Connected;
+
+    // [SyncVar] このプレイヤーが現在いるシーン
+    [SyncVar]
+    public GameScene currentScene = GameScene.Home;
     public override void OnStartClient()
     {
         base.OnStartClient();
@@ -55,11 +70,33 @@ public class PlayerState : NetworkBehaviour
         Debug.Log($"[Server-Command] Player : {connectionToClient.connectionId} - CharacterID : {characterId} Selected");
     }
 
+    //[Command]
+    //public void CmdPlayerReadyInBattle()
+    //{
+    //    //Debug.Log($"[Server-Command]: Player {connectionToClient.connectionId} Set BattleScene");
+    //    // このコードはサーバー上でのみ実行されるため、安全に呼び出せる
+    //    ServerGameManager.Instance.SpawnCharacterForPlayer(connectionToClient, selectedCharacterId);
+    //}
     [Command]
     public void CmdPlayerReadyInBattle()
     {
-        //Debug.Log($"[Server-Command]: Player {connectionToClient.connectionId} Set BattleScene");
+        Debug.Log($"[Server-Command]: Player {connectionToClient.connectionId} Set BattleScene");
         // このコードはサーバー上でのみ実行されるため、安全に呼び出せる
-        ServerGameManager.Instance.SpawnCharacterForPlayer(connectionToClient, selectedCharacterId);
+
+        // ★修正： matchId と characterId をこのオブジェクトから渡す
+        ServerGameManager.Instance.SpawnCharacterForPlayer(connectionToClient, selectedCharacterId, this.matchId);
+    }
+    [Command]
+    public void CmdFindMatch()
+    {
+        // サーバー側のServerGameManagerにマッチングを要求
+        ServerGameManager.Instance.AddPlayerToMatchmakingQueue(this);
+    }
+
+    [Command]
+    public void CmdCancelMatch()
+    {
+        // サーバー側のServerGameManagerにキャンセルを要求
+        ServerGameManager.Instance.RemovePlayerFromMatchmakingQueue(this);
     }
 }

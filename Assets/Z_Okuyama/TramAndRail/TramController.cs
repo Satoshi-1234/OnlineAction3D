@@ -1,4 +1,4 @@
-using UnityEditor.Sprites;
+//using UnityEditor.Sprites; エラーの原因になるためコメントアウト、動作への影響なし
 using UnityEngine;
 using UnityEngine.Splines;
 

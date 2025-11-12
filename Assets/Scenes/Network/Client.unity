@@ -1558,7 +1558,7 @@ MonoBehaviour:
   serverDropdown: {fileID: 807103361}
   connectButton: {fileID: 2043351218}
   startButton: {fileID: 639107647}
-  networkEditor: {fileID: 11400000, guid: a10d7d70b66ed4e4fa875fb5624ed808, type: 2}
+  networkEditor: {fileID: 11400000, guid: 956ed808656fd0546b4864fc3a3e0d60, type: 2}
   editorConnectButton: {fileID: 44972261}
 --- !u!4 &1027148877
 Transform:

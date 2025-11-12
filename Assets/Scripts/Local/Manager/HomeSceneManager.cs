@@ -74,25 +74,58 @@ public class HomeSceneManager : SceneManagerBase
         selectCharacterId = 1;
         UpdateButtonInteractble();
     }
-
     /// <summary>
-    /// キャラクター２ボタンが押されたときに呼び出されるメソッド
+    /// マッチング開始/キャンセルボタンが押された
     /// </summary>
     public void StartMatching()
     {
-        if (startMatch != null && !matchConnect)
+        if (localPlayerState == null)
+        {
+            Debug.LogError("[Client-Home] PlayerStateがnullです。マッチングを開始できません。");
+            return;
+        }
+        if(thisScene == GameScene.Debug)
         {
             matchConnect = true;
-            //ClientGameManager.Instance.SetSceneToServer("BattleScene");
             RequestSceneTransition();
+        }
+        else if (startMatch != null && !matchConnect)
+        {
+            // ★修正： サーバーにシーン遷移を要求するのではなく、
+            // サーバーにマッチングキューへの参加を要求する
+            localPlayerState.CmdFindMatch();
+
+            matchConnect = true;
+            //RequestSceneTransition(); // ← 削除
             startMatch.GetComponentInChildren<TMP_Text>().text = "キャンセル";
         }
-        else if(startMatch != null)
+        else if (startMatch != null)
         {
+            // ★修正： サーバーにマッチングキューからの離脱を要求する
+            localPlayerState.CmdCancelMatch();
+
             matchConnect = false;
             startMatch.GetComponentInChildren<TMP_Text>().text = "バトル開始";
         }
     }
+    ///// <summary>
+    ///// キャラクター２ボタンが押されたときに呼び出されるメソッド
+    ///// </summary>
+    //public void StartMatching()
+    //{
+    //    if (startMatch != null && !matchConnect)
+    //    {
+    //        matchConnect = true;
+    //        //ClientGameManager.Instance.SetSceneToServer("BattleScene");
+    //        RequestSceneTransition();
+    //        startMatch.GetComponentInChildren<TMP_Text>().text = "キャンセル";
+    //    }
+    //    else if(startMatch != null)
+    //    {
+    //        matchConnect = false;
+    //        startMatch.GetComponentInChildren<TMP_Text>().text = "バトル開始";
+    //    }
+    //}
 
     /// <summary>
     /// ボタンが押された際に活性化・非活性化の制御を行うメソッド
