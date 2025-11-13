@@ -1,13 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Mirror;
 
 public class CameraController : MonoBehaviour
 {
     [SerializeField, Range(0.1f, 10.0f)] float CameraSpeed = 10.0f;
     [SerializeField, Range(100.0f, 1000.0f)] float MouseSensitivity = 100.0f;
 
-
+    private GameObject _player;
     private KeyCode _cameraMoveKey = KeyCode.Mouse1;
     private KeyCode _forwardMoveKey = KeyCode.W;
     private KeyCode _backMoveKey = KeyCode.S;
@@ -58,6 +59,15 @@ public class CameraController : MonoBehaviour
                 moveDir += new Vector3(0, -1, 0);
             }
             transform.Translate(moveDir * CameraSpeed * Time.deltaTime * 10);
+        }
+    }
+
+
+    void Test()
+    {
+        if (NetworkClient.localPlayer.GetComponent<NetworkPlayerController>())
+        {
+
         }
     }
 }

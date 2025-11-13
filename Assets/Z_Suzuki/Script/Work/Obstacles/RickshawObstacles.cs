@@ -51,6 +51,7 @@ public class RickshawObstacles : ObstaclesBase
         transform.Translate(Vector3.forward * MoveSpeed * Time.deltaTime);
     }
 
+
     private void TurnState()
     {
         Vector3 targetDirection = _turnDirection;

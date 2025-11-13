@@ -14,12 +14,6 @@ public class DeliveryPerson : MonoBehaviour
             Debug.LogError("DeliveryManagerがアタッチされていません " + gameObject.name);
         }
     }
-    
-
-    void Update()
-    {
-        
-    }
 
 
     private void OnTriggerEnter(Collider other)

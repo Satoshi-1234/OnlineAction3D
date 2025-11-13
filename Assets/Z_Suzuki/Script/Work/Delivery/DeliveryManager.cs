@@ -10,6 +10,11 @@ public class DeliveryManager : MonoBehaviour
 
     public int GetDeliveryCompletedCount() { return _deliveryCompletedCount; }
     public DeliveryPoint GetCurrentDeliveryPoint() { return _currentDeliveryPoint; }
+    public void AddDeliveryPoint(DeliveryPoint deliveryPoint) 
+    {
+        DeliveryPointList.Add(deliveryPoint);
+        Debug.Log("”z’Bæ‚ª’Ç‰Á‚³‚ê‚Ü‚µ‚½: " + deliveryPoint.name);
+    }
 
 
     public void StartDelivery()
