@@ -48,4 +48,12 @@ public class AnimationUpdater : MonoBehaviour
         _animator.SetBool(JumpHash, false);
         _animator.SetBool(RunJumpHash, false);
     }
+
+
+    //プレイヤーのアニメーションを記録するため追加しました
+    //by 鈴木 11/23
+    public Animator GetAnimator()
+    {
+        return _animator;
+    }
 }
