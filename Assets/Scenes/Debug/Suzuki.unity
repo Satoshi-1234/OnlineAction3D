@@ -4135,12 +4135,12 @@ GameObject:
   - component: {fileID: 1853862390}
   - component: {fileID: 1853862389}
   m_Layer: 0
-  m_Name: GameObject
+  m_Name: BattleSceneManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1853862389
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4154,8 +4154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thisScene: 0
-  nextSceneRequest: 2
-  nextSceneAddress: Home
+  sceneSettings: {fileID: 11400000, guid: 10751542f4092b543aa20d6050138253, type: 2}
   localObjectsToLoad: []
 --- !u!4 &1853862390
 Transform:
