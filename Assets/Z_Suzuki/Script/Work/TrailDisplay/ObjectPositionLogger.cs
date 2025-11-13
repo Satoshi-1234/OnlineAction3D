@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ObjectPositionLogger : Singleton<ObjectPositionLogger>
+public class ObjectPositionLogger : SingletonBase<ObjectPositionLogger>
 {
     [SerializeField, Header("移動を追跡するオブジェクト")] Transform TrackObject;
     [SerializeField, Header("座標を記録する間隔(秒)")] float RecordInterval = 1.0f;

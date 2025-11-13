@@ -627,9 +627,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34ac04a12f8ac694e969d8649341cac8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  AudioMixer: {fileID: 0}
-  SEGroup: {fileID: 0}
-  BGMGroup: {fileID: 0}
+  AudioMixer: {fileID: 24100000, guid: 6a67a2f1c47526f41830b57171216de1, type: 2}
+  SEGroup: {fileID: 1782420367676604865, guid: 6a67a2f1c47526f41830b57171216de1, type: 2}
+  BGMGroup: {fileID: -4359107338023819411, guid: 6a67a2f1c47526f41830b57171216de1, type: 2}
   SEAudioClips: []
   BGMAudioClips: []
 --- !u!4 &202441311
@@ -2991,7 +2991,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1422598383
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4966,10 +4966,12 @@ SceneRoots:
   - {fileID: 1698808668}
   - {fileID: 1301626826}
   - {fileID: 1853862390}
+  - {fileID: 202441311}
+  - {fileID: 463705293}
+  - {fileID: 2121062931}
   - {fileID: 2064258514}
   - {fileID: 1664020455}
   - {fileID: 1422598388}
-  - {fileID: 2121062931}
   - {fileID: 1114353292}
   - {fileID: 1938501856}
   - {fileID: 1654366379}
@@ -4977,11 +4979,9 @@ SceneRoots:
   - {fileID: 1272998607}
   - {fileID: 542134016}
   - {fileID: 90251837}
-  - {fileID: 463705293}
   - {fileID: 39031297}
   - {fileID: 1617158117}
   - {fileID: 27024723}
-  - {fileID: 202441311}
   - {fileID: 377416721}
   - {fileID: 1983223062}
   - {fileID: 851960002}

@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class GameManager : Singleton<GameManager>
+public class GameManager : SingletonBase<GameManager>
 {
     [SerializeField] private KeyCode PauseKey = KeyCode.Space;
     [SerializeField] private KeyCode DebugEndKey = KeyCode.Escape;

@@ -1,13 +1,14 @@
 using UnityEngine;
 using UnityEngine.Audio;
 
-public class SoundManager : Singleton<SoundManager>
+public class SoundManager : SingletonBase<SoundManager>
 {
     [SerializeField] private AudioMixer AudioMixer;
     [SerializeField] private AudioMixerGroup SEGroup;
     [SerializeField] private AudioMixerGroup BGMGroup;
     [SerializeField] private AudioClip[] SEAudioClips;
     [SerializeField] private AudioClip[] BGMAudioClips;
+
 
     //SEを再生する関数
     //AudioSourceを指定する関数と音声ファイル名を指定する関数があります
@@ -34,6 +35,8 @@ public class SoundManager : Singleton<SoundManager>
         playSource.spatialBlend = 0.0f;
         playSource.PlayOneShot(playClip);
     }
+
+
     public void PlaySE(string clipName, Vector3 playPosition)
     {
         AudioSource playSource = GetFreeSEAudioSource();
@@ -52,6 +55,7 @@ public class SoundManager : Singleton<SoundManager>
         playSource.transform.position = playPosition;
         playSource.PlayOneShot(playClip);
     }
+
 
     //BGMを再生する関数
     //ファイル名を指定して再生することができます
@@ -74,6 +78,7 @@ public class SoundManager : Singleton<SoundManager>
         playSource.clip = playClip;
         playSource.Play();
     }
+
 
     //Scene上の全ての音を止める関数
     //オブジェクトにアタッチされているAudioSourceも含めた、全ての再生されている音を止めます
@@ -104,6 +109,7 @@ public class SoundManager : Singleton<SoundManager>
         }
     }
 
+
     //音を止める
     //AudioSourceを指定して再生されている音を止めることができます
     public void StopSound(AudioSource stopSoundSource)
@@ -117,6 +123,7 @@ public class SoundManager : Singleton<SoundManager>
             Debug.Log("指定したAudioSourceは音が再生されていません");
         }
     }
+
 
     //BGMを止める関数
     //再生されている全てのBGMを止める関数と指定したファイル名のBGMを止める関数を実装してます
@@ -152,6 +159,7 @@ public class SoundManager : Singleton<SoundManager>
         Debug.Log("BGMが見つかりませんでした");
     }
 
+
     //SEを止める関数
     //再生されている全てのSEを止める関数と指定したファイル名のSEを止める関数を実装してます
     public void StopAllSE()
@@ -186,6 +194,7 @@ public class SoundManager : Singleton<SoundManager>
         Debug.Log("SEが見つかりませんでした");
     }
 
+
     //音量を設定する関数
     //音量を０～１で設定できます
     //マスター音量、BGM音量、SE音量それぞれ設定できます
@@ -204,6 +213,7 @@ public class SoundManager : Singleton<SoundManager>
         float dB = Mathf.Log10(Mathf.Clamp(volume, 0.0001f, 1.0f)) * 20f;
         AudioMixer.SetFloat("SE", dB);
     }
+
 
     public float GetVolumeMaster()
     {
@@ -228,9 +238,9 @@ public class SoundManager : Singleton<SoundManager>
     /*************ここから下の関数は基本SoundManager内だけで使用するものなので気にしなくてもOK*************/
     private const int SE_MAX = 10;
     private const int BGM_MAX = 1;
-
     private AudioSource[] _seSources = new AudioSource[SE_MAX];
     private AudioSource[] _bgmSources = new AudioSource[BGM_MAX];
+
 
     protected override void DoAwake()
     {
@@ -243,6 +253,7 @@ public class SoundManager : Singleton<SoundManager>
             _bgmSources[i] = gameObject.AddComponent<AudioSource>();
         }
     }
+
 
     private AudioSource GetFreeSEAudioSource()
     {
@@ -265,6 +276,7 @@ public class SoundManager : Singleton<SoundManager>
         return ret;
     }
 
+
     private AudioSource GetFreeBGMAudioSource()
     {
         AudioSource ret = null;
@@ -286,6 +298,7 @@ public class SoundManager : Singleton<SoundManager>
         return ret;
     }
 
+
     private AudioClip GetBGMAudioClip(string bgmName)
     {
         AudioClip ret = null;
@@ -305,6 +318,7 @@ public class SoundManager : Singleton<SoundManager>
 
         return ret;
     }
+
 
     private AudioClip GetSEAudioClip(string seName)
     {

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7033069073219584426}
   - component: {fileID: 6042974980777976143}
   m_Layer: 5
-  m_Name: PlayerIcon
+  m_Name: MiniMapIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -65,7 +65,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: a9d47f7e01b39b64fb327a8ad8c249f0, type: 3}
+  m_Sprite: {fileID: 0}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

@@ -25,13 +25,38 @@ public class LoadingUI : MonoBehaviour
     }
 
 
+    private void LoadingImageUpdate(float deltaTime)
+    {
+        LodingImage.transform.Rotate(0f, 0f, -200f * Time.fixedDeltaTime);
+    }
+
+
+    private void LoadingTextUpdate(float deltaTime)
+    {
+        _loadingTimeCount += Time.fixedDeltaTime;
+
+        if (_loadingTimeCount < ChangeTextInterval)
+        {
+            return;
+        }
+
+        _loadingTimeCount = 0;
+        _dotCount++;
+        if (_dotCount > MaxDotCount)
+        {
+            _dotCount = 0;
+        }
+        LoadingTextUI.text = LoadingText + new string('.', _dotCount);
+    }
+
+
     private void OnEnable()
     {
         SceneLoader.OnProgressUpdated += UpdateProgressBar;
     }
 
 
-    private void Awake()
+    private void Start()
     {
         if (LoadingTextUI== null)
         {
@@ -57,21 +82,7 @@ public class LoadingUI : MonoBehaviour
 
     private void FixedUpdate()
     {
-        LodingImage.transform.Rotate(0f, 0f, -200f * Time.fixedDeltaTime);
-
-        _loadingTimeCount += Time.fixedDeltaTime;
-
-        if (_loadingTimeCount < ChangeTextInterval)
-        {
-            return;
-        }
-
-        _loadingTimeCount = 0;
-        _dotCount++;
-        if (_dotCount > MaxDotCount)
-        {
-            _dotCount = 0;
-        }
-        LoadingTextUI.text = LoadingText + new string('.', _dotCount);
+        LoadingImageUpdate(Time.fixedDeltaTime);
+        LoadingTextUpdate(Time.fixedDeltaTime);
     }
 }
